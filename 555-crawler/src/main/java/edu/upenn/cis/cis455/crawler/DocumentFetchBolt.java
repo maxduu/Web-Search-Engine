@@ -2,6 +2,7 @@ package edu.upenn.cis.cis455.crawler;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.ParseException;
@@ -13,8 +14,12 @@ import javax.net.ssl.HttpsURLConnection;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import edu.upenn.cis.cis455.crawler.utils.HttpDateUtils;
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
+import edu.upenn.cis.cis455.crawler.utils.WorkerRouter;
+import edu.upenn.cis.cis455.crawler.worker.WorkerServer;
 import edu.upenn.cis.cis455.storage.AddDocumentResponse;
 import edu.upenn.cis.stormlite.OutputFieldsDeclarer;
 import edu.upenn.cis.stormlite.TopologyContext;
@@ -36,7 +41,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	Fields schema = new Fields("id", "url", "document", "type");
     String executorId = UUID.randomUUID().toString();
     private OutputCollector collector;
-    Crawler crawlerInstance = Crawler.getSingleton();
+    Crawler crawlerInstance = WorkerServer.crawler;
 
 	@Override
 	public String getExecutorId() {
@@ -58,6 +63,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	public void execute(Tuple input) {
         String url = input.getStringByField("url");
         log.debug(getExecutorId() + " received " + url);
+        System.err.println(getExecutorId() + " received " + url);
         
         try {
 	        URL urlObj = new URL(url);
@@ -78,6 +84,8 @@ public class DocumentFetchBolt implements IRichBolt {
 			urlConnection.setRequestMethod("HEAD");
 			urlConnection.setRequestProperty("User-Agent", "cis455crawler");
 			
+			System.err.println("Getting header info");
+			
 			String contentType = "";
 			
 			// check if content type is html or xml
@@ -85,11 +93,13 @@ public class DocumentFetchBolt implements IRichBolt {
 				contentType = urlConnection.getHeaderField("Content-Type");
 				if (!contentType.startsWith("text/html") && !contentType.startsWith("text/xml") && 
 						!contentType.startsWith("application/xml") && !contentType.contains("+xml")) {
-					Crawler.getSingleton().setWorking(false);
+					System.err.println(url + " content type not compatible");
+					WorkerServer.crawler.setWorking(false);
 					return;
 				}
 			} else {
-				Crawler.getSingleton().setWorking(false);
+				System.err.println("Null header");
+				WorkerServer.crawler.setWorking(false);
 				return;
 			}
 			
@@ -97,11 +107,13 @@ public class DocumentFetchBolt implements IRichBolt {
 			if (urlConnection.getHeaderField("Content-Length") != null) {
 				int contentLength = Integer.parseInt(urlConnection.getHeaderField("Content-Length"));
 				if (contentLength > 1000000 * crawlerInstance.maxDocSize) {
-					Crawler.getSingleton().setWorking(false);
+					System.err.println(url + " content type too long");
+					WorkerServer.crawler.setWorking(false);
 					return;
 				}
 			} else {
-				Crawler.getSingleton().setWorking(false);
+				System.err.println("Null header");
+				WorkerServer.crawler.setWorking(false);
 				return;
 			}
 			
@@ -112,42 +124,45 @@ public class DocumentFetchBolt implements IRichBolt {
 	    	// if the redirect url is on a different domain, add back into queue for the 
 	    	// correct domain
 	    	if (!urlInfo.getDomain().equals(currentUrlInfo.getDomain())) {
-	    		crawlerInstance.queue.put(currentUrl);
-				Crawler.getSingleton().setWorking(false);
+	    		WorkerRouter.sendUrlToWorker(currentUrl, WorkerServer.config.get("workers"));
+	    		WorkerServer.crawler.setWorking(false);
 	    		return;
 	    	} else if (crawlerInstance.queue.getDomainQueue(currentUrlInfo.getDomain()) != null) {
 	    		DomainQueue dq = crawlerInstance.queue.getDomainQueue(currentUrlInfo.getDomain());
 	    		
 	    		// if domain is the same domain, make sure the redirect url is allowed
 	    		if (dq.checkDisallowed(currentUrl)) {
-	    			Crawler.getSingleton().setWorking(false);
+	    			WorkerServer.crawler.setWorking(false);
 	    			return;
 	    		}
 	    	}
 			
 	    	// check if the url has been stored before and see if it has been modified since
-			if (crawlerInstance.db.urlSeen(currentUrl)) {
-				edu.upenn.cis.cis455.storage.Document doc = crawlerInstance.db.getDocumentObjectByUrl(currentUrl);
-				if (urlConnection.getHeaderField("Last-Modified") != null) {
-					String lastModifiedString = urlConnection.getHeaderField("Last-Modified");
-					Date lastModified = HttpDateUtils.parseHttpString(lastModifiedString);
-					if (lastModified.before(doc.lastCrawled)) {
-						
-						// document wasn't modified, but we still need to add the hash
-						AddDocumentResponse res = crawlerInstance.db.addDocument(currentUrl, doc.content, contentType, false);
-						log.info(url + ": not modified");
-
-						// we can use the db copy if we haven't hashed the doc yet
-						if (!res.contentSeen) {
-							collector.emit(new Values<Object>(res.documentId, currentUrl, doc.content, 
-									urlConnection.getHeaderField("Content-Type")));
-						} else {
-							Crawler.getSingleton().setWorking(false);
-						}
-						return;
-					}
-				}
-			}
+	    	// TODO: ADD THIS BACK WHEN WE CAN USE RDS TO SHARE DATABASE ACROSS INSTANCES
+//			if (crawlerInstance.db.urlSeen(currentUrl)) {
+//				edu.upenn.cis.cis455.storage.Document doc = crawlerInstance.db.getDocumentObjectByUrl(currentUrl);
+//				if (urlConnection.getHeaderField("Last-Modified") != null) {
+//					String lastModifiedString = urlConnection.getHeaderField("Last-Modified");
+//					Date lastModified = HttpDateUtils.parseHttpString(lastModifiedString);
+//					if (lastModified.before(doc.lastCrawled)) {
+//						
+//						// document wasn't modified, but we still need to add the hash
+//						AddDocumentResponse res = crawlerInstance.db.addDocument(currentUrl, doc.content, contentType, false);
+//						log.info(url + ": not modified");
+//
+//						// we can use the db copy if we haven't hashed the doc yet
+//						if (!res.contentSeen) {
+//							collector.emit(new Values<Object>(res.documentId, currentUrl, doc.content, 
+//									urlConnection.getHeaderField("Content-Type")));
+//						} else {
+//							WorkerServer.crawler.setWorking(false);
+//						}
+//						return;
+//					}
+//				}
+//			}
+	    	
+	    	System.err.println("about to download");
 			
 			// open new url connection to fetch the content
 			if (currentUrlInfo.isSecure()) {
@@ -165,20 +180,22 @@ public class DocumentFetchBolt implements IRichBolt {
 		    		    
 		    // add content to the database - this will check if the document contents 
 		    // have been hashed and index accordingly
-		    AddDocumentResponse res = crawlerInstance.db.addDocument(currentUrl, content, contentType, true);
+		    InputStream inputStream = WorkerRouter.sendDocumentToMaster(WorkerServer.masterServer, currentUrl, content, 
+		    		contentType, true).getInputStream();
+	        final ObjectMapper om = new ObjectMapper();
+	        om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
+		    AddDocumentResponse res = om.readValue(inputStream, AddDocumentResponse.class);
 		    		    
 		    // if the contents haven't been hashed and we indexed the doc, we increment 
 		    // the crawler's counts and emit
 		    if (!res.contentSeen) {
-		    	crawlerInstance.incCount();
+		    	System.err.println("EMIT");
 				collector.emit(new Values<Object>(res.documentId, currentUrl, content, 
 						urlConnection.getHeaderField("Content-Type")));
 		    } else {
-				Crawler.getSingleton().setWorking(false);
+		    	WorkerServer.crawler.setWorking(false);
 		    }
         } catch (IOException e) {
-			e.printStackTrace();
-		} catch (ParseException e) {
 			e.printStackTrace();
 		}
 	}

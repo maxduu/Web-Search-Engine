@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import edu.upenn.cis.cis455.crawler.worker.WorkerServer;
 import edu.upenn.cis.stormlite.OutputFieldsDeclarer;
 import edu.upenn.cis.stormlite.TopologyContext;
 import edu.upenn.cis.stormlite.routers.IStreamRouter;
@@ -53,7 +54,7 @@ public class QueueSpout implements IRichSpout {
 	@Override
 	public void nextTuple() {
 		try {
-			String url = Crawler.getSingleton().queue.take();
+			String url = WorkerServer.crawler.queue.take();
 
 			// null means the queue is empty, we don't emit anything
 			if (url == null) {

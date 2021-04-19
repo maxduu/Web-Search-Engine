@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
+import edu.upenn.cis.cis455.crawler.worker.WorkerServer;
 
 /**
  * Queue that the storm crawler uses
@@ -40,7 +41,7 @@ public class StormCrawlerQueue {
 	 * Put a URL in the crawler queue
 	 * @param url
 	 */
-	synchronized void put(String url) {
+	public synchronized void put(String url) {
 		URLInfo info = new URLInfo(url);
 		
 		// get queue corresponding to URL domain
@@ -79,7 +80,7 @@ public class StormCrawlerQueue {
 				
 				// check if the domain queue is in a crawler delay
 				if (domainQueues.get(currIndex).getDelayRemaining() <= 0) {
-					Crawler.getSingleton().setWorking(true);
+					WorkerServer.crawler.setWorking(true);
 					size--;
 					String url = domainQueues.get(currIndex).take();
 					currIndex++;

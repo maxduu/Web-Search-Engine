@@ -23,28 +23,15 @@ public class Crawler implements CrawlMaster {
     private static final String DOCUMENT_FETCH_BOLT = "DOCUMENT_FETCH_BOLT";
     private static final String LINK_EXTRACTOR_BOLT = "LINK_EXTRACTOR_BOLT";
 	
-    public int documentsCrawled = 0;
     public StormCrawlerQueue queue = new StormCrawlerQueue();
     public int maxDocSize;
-    public String startUrl;
-    public int maxDocNum;
-    public StorageInterface db;
     
     int tasks = 0;
     
     LocalCluster cluster;
-    
-    private static Crawler crawler;
-    
-    public static Crawler getSingleton() {
-    	return crawler;
-    }
 
-    private Crawler(String startUrl, StorageInterface db, int size, int count) {
-    	this.startUrl = startUrl;
+    public Crawler(int size) {
     	this.maxDocSize = size;
-    	this.maxDocNum = count;
-    	this.db = db;
     }
 
     /**
@@ -52,7 +39,6 @@ public class Crawler implements CrawlMaster {
      */
     public void start() {
     	// add start url to the queue
-    	queue.put(startUrl);
         Config config = new Config();
 
         // build the crawler storm topology
@@ -84,24 +70,11 @@ public class Crawler implements CrawlMaster {
         		builder.createTopology());
     }
 
-    /**
-     * We've indexed another document
-     */
-    @Override
-    public synchronized void incCount() {
-    	documentsCrawled++;
-    	
-    	// pause the queue if we've crawled enough documents
-    	if (documentsCrawled == this.maxDocNum) {
-    		queue.pauseQueue();
-    	}
-    }
-
     @Override
     public boolean isDone() {
     	// we are done when the queue is empty or we've gotten the max number of docs and all worker tasks 
     	// are finished
-        return (queue.size == 0 || documentsCrawled >= this.maxDocNum) && this.tasks == 0;
+        return queue.size == 0 && this.tasks == 0;
     }
 
     /**
@@ -127,7 +100,6 @@ public class Crawler implements CrawlMaster {
     public void shutdown() {
     	cluster.killTopology("crawl");
     	cluster.shutdown();
-    	db.close();
     	System.exit(0);
     }
 
@@ -135,45 +107,45 @@ public class Crawler implements CrawlMaster {
      * Main program: init database, start crawler, wait for it to notify that it is
      * done, then close.
      */
-    public static void main(String args[]) {
-        if (args.length < 3 || args.length > 5) {
-            System.out.println("Usage: Crawler {start URL} {database environment path} {max doc size in MB} {number of files to index}");
-            System.exit(1);
-        }
-
-        System.out.println("Crawler starting");
-        String startUrl = args[0];
-        String envPath = args[1];
-        Integer size = Integer.valueOf(args[2]);
-        Integer count = args.length == 4 ? Integer.valueOf(args[3]) : 100;
-        
-        if (!Files.exists(Paths.get(envPath))) {
-            try {
-                Files.createDirectory(Paths.get(envPath));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        StorageInterface db;
-        
-		db = StorageFactory.getDatabaseInstance(envPath);
-		
-        crawler = new Crawler(startUrl, db, size, count);
-
-        System.out.println("Starting crawl of " + count + " documents, starting at " + startUrl);
-        crawler.start();
-
-        while (!crawler.isDone())
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
-        crawler.shutdown();
-        
-        System.out.println("Done crawling!");
-    }
+//    public static void main(String args[]) {
+//        if (args.length < 3 || args.length > 5) {
+//            System.out.println("Usage: Crawler {start URL} {database environment path} {max doc size in MB} {number of files to index}");
+//            System.exit(1);
+//        }
+//
+//        System.out.println("Crawler starting");
+//        String startUrl = args[0];
+//        String envPath = args[1];
+//        Integer size = Integer.valueOf(args[2]);
+//        Integer count = args.length == 4 ? Integer.valueOf(args[3]) : 100;
+//        
+//        if (!Files.exists(Paths.get(envPath))) {
+//            try {
+//                Files.createDirectory(Paths.get(envPath));
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//        }
+//
+//        StorageInterface db;
+//        
+//		db = StorageFactory.getDatabaseInstance(envPath);
+//		
+//        Crawler crawler = new Crawler(startUrl, db, size, count);
+//
+//        System.out.println("Starting crawl of " + count + " documents, starting at " + startUrl);
+//        crawler.start();
+//
+//        while (!crawler.isDone())
+//            try {
+//                Thread.sleep(10);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//
+//        crawler.shutdown();
+//        
+//        System.out.println("Done crawling!");
+//    }
 
 }

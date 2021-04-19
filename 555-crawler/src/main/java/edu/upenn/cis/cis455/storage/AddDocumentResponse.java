@@ -10,6 +10,8 @@ public class AddDocumentResponse {
 	public int documentId;
 	public boolean contentSeen;
 	
+	public AddDocumentResponse() {}
+	
 	public AddDocumentResponse(int id, boolean contentSeen) {
 		this.documentId = id;
 		this.contentSeen = contentSeen;

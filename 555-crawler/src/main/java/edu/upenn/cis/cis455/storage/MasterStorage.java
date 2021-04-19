@@ -22,7 +22,7 @@ import com.sleepycat.persist.StoreConfig;
 
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 
-public class BerkeleyStorage implements StorageInterface {
+public class MasterStorage implements StorageInterface {
 	
 	Environment env;
 	
@@ -38,7 +38,7 @@ public class BerkeleyStorage implements StorageInterface {
 	 * Initialize the BerkeleyDB storage
 	 * @param directory
 	 */
-	public BerkeleyStorage(String directory) {
+	public MasterStorage(String directory) {
 		
 		// create the environment
         EnvironmentConfig envConfig = new EnvironmentConfig();
