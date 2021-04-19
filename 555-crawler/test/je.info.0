@@ -1,0 +1,100 @@
+2021-04-17 20:35:27.138 UTC INFO [./test] Start DB remove/truncate scan, id=1 dbId=11 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:35:27.142 UTC INFO [./test] End DB remove/truncate scan, id=1 scanned=1 dbId=11 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:35:27.147 UTC INFO [./test] Start DB remove/truncate scan, id=2 dbId=9 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:35:27.148 UTC INFO [./test] End DB remove/truncate scan, id=2 scanned=1 dbId=9 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:35:27.152 UTC INFO [./test] Start DB remove/truncate scan, id=3 dbId=8 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:35:27.153 UTC INFO [./test] End DB remove/truncate scan, id=3 scanned=2 dbId=8 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:35:27.159 UTC INFO [./test] Start DB remove/truncate scan, id=4 dbId=12 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:35:27.171 UTC INFO [./test] End DB remove/truncate scan, id=4 scanned=0 dbId=12 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:35:27.233 UTC INFO [./test] JEErasure soft shutdown initiated.
+2021-04-17 20:35:27.234 UTC INFO [./test] RepairReservedFiles-./test soft shutdown initiated.
+2021-04-17 20:35:27.497 UTC INFO [./test] Start DB remove/truncate scan, id=5 dbId=14 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:35:27.499 UTC INFO [./test] End DB remove/truncate scan, id=5 scanned=1 dbId=14 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:35:27.506 UTC INFO [./test] Start DB remove/truncate scan, id=6 dbId=13 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:35:27.507 UTC INFO [./test] End DB remove/truncate scan, id=6 scanned=2 dbId=13 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:35:27.512 UTC INFO [./test] Start DB remove/truncate scan, id=7 dbId=15 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:35:27.512 UTC INFO [./test] End DB remove/truncate scan, id=7 scanned=1 dbId=15 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:35:27.519 UTC INFO [./test] Start DB remove/truncate scan, id=8 dbId=16 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:35:27.522 UTC INFO [./test] End DB remove/truncate scan, id=8 scanned=0 dbId=16 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:35:27.528 UTC INFO [./test] JEErasure soft shutdown initiated.
+2021-04-17 20:35:27.529 UTC INFO [./test] RepairReservedFiles-./test soft shutdown initiated.
+2021-04-17 20:39:58.794 UTC INFO [./test] Start DB remove/truncate scan, id=9 dbId=18 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:39:58.797 UTC INFO [./test] End DB remove/truncate scan, id=9 scanned=1 dbId=18 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:39:58.805 UTC INFO [./test] Start DB remove/truncate scan, id=10 dbId=19 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:39:58.806 UTC INFO [./test] End DB remove/truncate scan, id=10 scanned=1 dbId=19 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:39:58.809 UTC INFO [./test] Start DB remove/truncate scan, id=11 dbId=17 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:39:58.810 UTC INFO [./test] End DB remove/truncate scan, id=11 scanned=2 dbId=17 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:39:58.812 UTC INFO [./test] Start DB remove/truncate scan, id=12 dbId=20 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:39:58.813 UTC INFO [./test] End DB remove/truncate scan, id=12 scanned=0 dbId=20 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:39:58.815 UTC INFO [./test] JEErasure soft shutdown initiated.
+2021-04-17 20:39:58.816 UTC INFO [./test] RepairReservedFiles-./test soft shutdown initiated.
+2021-04-17 20:39:58.912 UTC INFO [./test] Start DB remove/truncate scan, id=13 dbId=22 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:39:58.913 UTC INFO [./test] End DB remove/truncate scan, id=13 scanned=1 dbId=22 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:39:58.918 UTC INFO [./test] Start DB remove/truncate scan, id=14 dbId=23 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:39:58.919 UTC INFO [./test] End DB remove/truncate scan, id=14 scanned=1 dbId=23 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:39:58.920 UTC INFO [./test] Start DB remove/truncate scan, id=15 dbId=21 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:39:58.921 UTC INFO [./test] End DB remove/truncate scan, id=15 scanned=2 dbId=21 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:39:58.922 UTC INFO [./test] Start DB remove/truncate scan, id=16 dbId=24 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:39:58.922 UTC INFO [./test] End DB remove/truncate scan, id=16 scanned=0 dbId=24 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:39:58.923 UTC INFO [./test] JEErasure soft shutdown initiated.
+2021-04-17 20:39:58.924 UTC INFO [./test] RepairReservedFiles-./test soft shutdown initiated.
+2021-04-17 20:43:58.296 UTC INFO [./test] Start DB remove/truncate scan, id=17 dbId=26 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:43:58.308 UTC INFO [./test] End DB remove/truncate scan, id=17 scanned=1 dbId=26 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:43:58.314 UTC INFO [./test] Start DB remove/truncate scan, id=18 dbId=27 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:43:58.314 UTC INFO [./test] End DB remove/truncate scan, id=18 scanned=1 dbId=27 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:43:58.317 UTC INFO [./test] Start DB remove/truncate scan, id=19 dbId=25 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:43:58.318 UTC INFO [./test] End DB remove/truncate scan, id=19 scanned=2 dbId=25 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:43:58.320 UTC INFO [./test] Start DB remove/truncate scan, id=20 dbId=28 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:43:58.321 UTC INFO [./test] End DB remove/truncate scan, id=20 scanned=0 dbId=28 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:43:58.322 UTC INFO [./test] JEErasure soft shutdown initiated.
+2021-04-17 20:43:58.323 UTC INFO [./test] RepairReservedFiles-./test soft shutdown initiated.
+2021-04-17 20:43:58.462 UTC INFO [./test] Start DB remove/truncate scan, id=21 dbId=30 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:43:58.464 UTC INFO [./test] End DB remove/truncate scan, id=21 scanned=1 dbId=30 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:43:58.468 UTC INFO [./test] Start DB remove/truncate scan, id=22 dbId=29 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:43:58.471 UTC INFO [./test] End DB remove/truncate scan, id=22 scanned=2 dbId=29 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:43:58.489 UTC INFO [./test] Start DB remove/truncate scan, id=23 dbId=31 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:43:58.490 UTC INFO [./test] End DB remove/truncate scan, id=23 scanned=1 dbId=31 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:43:58.493 UTC INFO [./test] Start DB remove/truncate scan, id=24 dbId=32 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:43:58.494 UTC INFO [./test] End DB remove/truncate scan, id=24 scanned=0 dbId=32 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:43:58.496 UTC INFO [./test] JEErasure soft shutdown initiated.
+2021-04-17 20:43:58.496 UTC INFO [./test] RepairReservedFiles-./test soft shutdown initiated.
+2021-04-17 20:45:04.934 UTC INFO [./test] Start DB remove/truncate scan, id=25 dbId=34 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:45:04.938 UTC INFO [./test] End DB remove/truncate scan, id=25 scanned=1 dbId=34 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:45:04.943 UTC INFO [./test] Start DB remove/truncate scan, id=26 dbId=33 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:45:04.944 UTC INFO [./test] End DB remove/truncate scan, id=26 scanned=2 dbId=33 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:45:04.947 UTC INFO [./test] Start DB remove/truncate scan, id=27 dbId=35 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:45:04.948 UTC INFO [./test] End DB remove/truncate scan, id=27 scanned=1 dbId=35 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:45:04.953 UTC INFO [./test] Start DB remove/truncate scan, id=28 dbId=36 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:45:04.955 UTC INFO [./test] End DB remove/truncate scan, id=28 scanned=0 dbId=36 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:45:04.971 UTC INFO [./test] JEErasure soft shutdown initiated.
+2021-04-17 20:45:04.971 UTC INFO [./test] RepairReservedFiles-./test soft shutdown initiated.
+2021-04-17 20:45:05.120 UTC INFO [./test] Start DB remove/truncate scan, id=29 dbId=38 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:45:05.121 UTC INFO [./test] End DB remove/truncate scan, id=29 scanned=1 dbId=38 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:45:05.126 UTC INFO [./test] Start DB remove/truncate scan, id=30 dbId=39 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:45:05.126 UTC INFO [./test] End DB remove/truncate scan, id=30 scanned=1 dbId=39 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:45:05.129 UTC INFO [./test] Start DB remove/truncate scan, id=31 dbId=37 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:45:05.130 UTC INFO [./test] End DB remove/truncate scan, id=31 scanned=2 dbId=37 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:45:05.133 UTC INFO [./test] Start DB remove/truncate scan, id=32 dbId=40 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:45:05.133 UTC INFO [./test] End DB remove/truncate scan, id=32 scanned=0 dbId=40 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:45:05.138 UTC INFO [./test] JEErasure soft shutdown initiated.
+2021-04-17 20:45:05.144 UTC INFO [./test] RepairReservedFiles-./test soft shutdown initiated.
+2021-04-17 20:48:44.609 UTC INFO [./test] Start DB remove/truncate scan, id=33 dbId=42 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:48:44.631 UTC INFO [./test] End DB remove/truncate scan, id=33 scanned=1 dbId=42 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:48:44.637 UTC INFO [./test] Start DB remove/truncate scan, id=34 dbId=41 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:48:44.641 UTC INFO [./test] End DB remove/truncate scan, id=34 scanned=2 dbId=41 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:48:44.671 UTC INFO [./test] Start DB remove/truncate scan, id=35 dbId=43 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:48:44.681 UTC INFO [./test] End DB remove/truncate scan, id=35 scanned=1 dbId=43 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:48:44.686 UTC INFO [./test] Start DB remove/truncate scan, id=36 dbId=44 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:48:44.687 UTC INFO [./test] End DB remove/truncate scan, id=36 scanned=0 dbId=44 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:48:44.690 UTC INFO [./test] JEErasure soft shutdown initiated.
+2021-04-17 20:48:44.691 UTC INFO [./test] RepairReservedFiles-./test soft shutdown initiated.
+2021-04-17 20:48:44.987 UTC INFO [./test] Start DB remove/truncate scan, id=37 dbId=46 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:48:44.987 UTC INFO [./test] End DB remove/truncate scan, id=37 scanned=1 dbId=46 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:48:44.989 UTC INFO [./test] Start DB remove/truncate scan, id=38 dbId=47 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:48:44.989 UTC INFO [./test] End DB remove/truncate scan, id=38 scanned=1 dbId=47 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document#url
+2021-04-17 20:48:44.991 UTC INFO [./test] Start DB remove/truncate scan, id=39 dbId=45 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:48:44.991 UTC INFO [./test] End DB remove/truncate scan, id=39 scanned=2 dbId=45 dbName=persist#DocumentStore#edu.upenn.cis.cis455.storage.Document
+2021-04-17 20:48:44.993 UTC INFO [./test] Start DB remove/truncate scan, id=40 dbId=48 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:48:44.993 UTC INFO [./test] End DB remove/truncate scan, id=40 scanned=0 dbId=48 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-04-17 20:48:45.003 UTC INFO [./test] JEErasure soft shutdown initiated.
+2021-04-17 20:48:45.003 UTC INFO [./test] RepairReservedFiles-./test soft shutdown initiated.
