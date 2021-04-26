@@ -1,10 +1,6 @@
 package edu.upenn.cis.cis455.crawler;
 
 public interface CrawlMaster {
-    /**
-     * We've indexed another document
-     */
-    public void incCount();
 
     /**
      * Workers can poll this to see if they should exit, ie the crawl is done

@@ -154,6 +154,50 @@
                 <id>web</id>
                 <goals><goal>java</goal></goals>
               </execution>
+              <execution>
+				<id>master</id>
+				<goals>
+					<goal>java</goal>
+				</goals>
+				<configuration>
+					<mainClass>edu.upenn.cis.cis455.crawler.master.MasterServer</mainClass>
+					<arguments>
+					    <argument>https://kevnchen.com/</argument>
+					    <argument>rds-path</argument>
+						<argument>1</argument>
+						<argument>100</argument>
+						<argument>45555</argument>
+					</arguments>
+				</configuration>
+			</execution>
+              <execution>
+				<id>worker1</id>
+				<goals>
+					<goal>java</goal>
+				</goals>
+				<configuration>
+					<mainClass>edu.upenn.cis.cis455.crawler.worker.WorkerServer</mainClass>
+					<arguments>
+						<argument>8001</argument>
+						<argument>localhost:45555</argument>
+						<argument>storage/node1</argument>
+					</arguments>
+				</configuration>
+			</execution>
+            <execution>
+				<id>worker2</id>
+				<goals>
+					<goal>java</goal>
+				</goals>
+				<configuration>
+					<mainClass>edu.upenn.cis.cis455.crawler.worker.WorkerServer</mainClass>
+					<arguments>
+						<argument>8002</argument>
+						<argument>localhost:45555</argument>
+						<argument>storage/node2</argument>
+					</arguments>
+				</configuration>
+			</execution>
               </executions>
               <configuration>
                 <mainClass>edu.upenn.cis.cis455.crawler.WebInterface</mainClass>

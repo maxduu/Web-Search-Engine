@@ -1,5 +1,7 @@
 package edu.upenn.cis.cis455.crawler;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.util.Map;
 import java.util.UUID;
 
@@ -10,6 +12,8 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import edu.upenn.cis.cis455.crawler.utils.WorkerRouter;
+import edu.upenn.cis.cis455.crawler.worker.WorkerServer;
 import edu.upenn.cis.stormlite.OutputFieldsDeclarer;
 import edu.upenn.cis.stormlite.TopologyContext;
 import edu.upenn.cis.stormlite.bolt.IRichBolt;
@@ -30,7 +34,7 @@ public class LinkExtractorBolt implements IRichBolt {
 	
     String executorId = UUID.randomUUID().toString();
     private OutputCollector collector;
-    Crawler crawlerInstance = Crawler.getSingleton();
+    Crawler crawlerInstance = WorkerServer.crawler;
 
 	@Override
 	public String getExecutorId() {
@@ -55,7 +59,7 @@ public class LinkExtractorBolt implements IRichBolt {
 
 		// ignore non html documents (xml docs)
 		if (!type.startsWith("text/html")) {
-			Crawler.getSingleton().setWorking(false);
+			WorkerServer.crawler.setWorking(false);
 			return;
 		}
 		
@@ -65,11 +69,18 @@ public class LinkExtractorBolt implements IRichBolt {
 	    
 	    for (Element link : links) {
 			String nextUrl = link.absUrl("href");
-			Crawler.getSingleton().queue.put(nextUrl);
+			try {
+				if (WorkerRouter.sendUrlToWorker(nextUrl, WorkerServer.config.get("workers")).getResponseCode() !=
+						HttpURLConnection.HTTP_OK) {
+					throw new RuntimeException("Worker add start URL request failed");
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 	    }
 	    
 	    // link extract task finished
-	    Crawler.getSingleton().setWorking(false);
+	    WorkerServer.crawler.setWorking(false);
 	}
 
 	@Override
