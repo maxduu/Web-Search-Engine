@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,7 +28,8 @@ public class MasterServer {
 	
 	private static List<String> workerList = new ArrayList<String>();
 	private static MasterStorage masterStorage;
-	private static int count;
+	private static AtomicInteger documentsCrawled = new AtomicInteger();
+	private static int stopCount;
 	
 	private static HttpURLConnection postWorkerStart(String address, Map<String, String> config) throws IOException {
 		ObjectMapper mapper = new ObjectMapper();
@@ -47,8 +49,36 @@ public class MasterServer {
 		return conn;
 	}
 	
-	private static void shutdown() {
-		
+	private static void shutdown() throws IOException {
+		System.err.println("IN SHUTDOWN");
+		// make a request to the workers to shutdown
+		for (String worker : workerList) {
+			URL url;
+			if (worker.startsWith("http")) {
+    			url = new URL(worker + "/shutdown");    			
+			} else {
+    			url = new URL("http://" + worker + "/shutdown");    			
+			}
+
+			HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+			if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+				throw new RuntimeException("Request failed");
+			}
+			System.err.println("SHUTDOWN WORKER");
+		}
+
+		// Call System.exit via another thread after this function has returned status 200
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					Thread.sleep(5000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				System.exit(0);
+			}
+		}).start();
 	}
 	
 	public static void main(String[] args) {
@@ -60,7 +90,7 @@ public class MasterServer {
         String startUrl = args[0];
         String rdsPath = args[1];
         int size = Integer.valueOf(args[2]);
-        count = Integer.valueOf(args[3]);
+        stopCount = Integer.valueOf(args[3]);
         int myPort = Integer.valueOf(args[4]);
 
         port(myPort);
@@ -85,6 +115,13 @@ public class MasterServer {
         });
         
 		get("/start", (req, res) -> {
+			documentsCrawled.set(masterStorage.getCorpusSize());
+			
+			if (documentsCrawled.get() >= stopCount) {
+				shutdown();
+				return "<h1>Exceeded document count!</h1>";
+			}
+			
 			Map<String, String> config = new HashMap<String, String>();
 			config.put("workers", workerList.toString());
 			config.put("size", String.valueOf(size));
@@ -123,12 +160,12 @@ public class MasterServer {
 			
 			AddDocumentResponse response = masterStorage.addDocument(body.url, body.contents, body.type, body.modified);
 			
-			if (!response.contentSeen && Boolean.parseBoolean(req.queryParams("modified"))) {
-				count -= 1;
+			if (!response.contentSeen && body.modified) {
+				documentsCrawled.incrementAndGet();
 			}
 			
-			if (count == 0) {
-				// TODO: shutdown logic
+			if (documentsCrawled.get() == stopCount) {
+				shutdown();
 			}
 			
 			ObjectMapper mapper = new ObjectMapper();

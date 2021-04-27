@@ -143,7 +143,7 @@
               <configuration>
                 <mainClass>edu.upenn.cis.cis455.crawler.Crawler</mainClass>
                 <arguments>
-                  <argument>https://crawltest.cis.upenn.edu/</argument>
+                  <argument>https://kevnchen.com/</argument>
                   <argument>./database</argument>
                   <argument>1</argument>
                   <argument>10</argument>

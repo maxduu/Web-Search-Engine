@@ -33,7 +33,7 @@ public class StormCrawlerQueue {
 	/**
 	 * Used to tell the queue to stop returning URLs on take
 	 */
-	void pauseQueue() {
+	public void pauseQueue() {
 		pause = true;
 	}
 	

@@ -179,14 +179,21 @@ public class DocumentFetchBolt implements IRichBolt {
 			in = new BufferedInputStream(urlConnection.getInputStream());
 	    	log.info(url + ": downloading");
 		    String content = new String(in.readAllBytes());
+		    
+		    System.err.println("document downloaded");
 		    		    
 		    // add content to the database - this will check if the document contents 
 		    // have been hashed and index accordingly
 		    InputStream inputStream = WorkerRouter.sendDocumentToMaster(WorkerServer.masterServer, currentUrl, content, 
 		    		contentType, true).getInputStream();
+		    
+		    System.err.println("send doc to master");
+		    
 	        final ObjectMapper om = new ObjectMapper();
 	        om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
 		    AddDocumentResponse res = om.readValue(inputStream, AddDocumentResponse.class);
+		    
+		    System.err.println("got response from master");
 		    		    
 		    // if the contents haven't been hashed and we indexed the doc, we increment 
 		    // the crawler's counts and emit
@@ -195,9 +202,11 @@ public class DocumentFetchBolt implements IRichBolt {
 				collector.emit(new Values<Object>(res.documentId, currentUrl, content, 
 						urlConnection.getHeaderField("Content-Type")));
 		    } else {
+		    	System.err.println("Content seen");
 		    	WorkerServer.crawler.setWorking(false);
 		    }
         } catch (IOException e) {
+        	WorkerServer.crawler.setWorking(false);
 			e.printStackTrace();
 		}
 	}

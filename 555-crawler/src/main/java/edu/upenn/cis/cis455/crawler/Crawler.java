@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +26,7 @@ public class Crawler implements CrawlMaster {
     public StormCrawlerQueue queue = new StormCrawlerQueue();
     public int maxDocSize;
     
-    int tasks = 0;
+    AtomicInteger tasks = new AtomicInteger();
     
     LocalCluster cluster;
 
@@ -70,10 +71,10 @@ public class Crawler implements CrawlMaster {
     }
 
     @Override
-    public boolean isDone() {
+    public boolean isWorking() {
     	// we are done when the queue is empty or we've gotten the max number of docs and all worker tasks 
     	// are finished
-        return queue.size == 0 && this.tasks == 0;
+        return this.tasks.get() != 0;
     }
 
     /**
@@ -82,10 +83,11 @@ public class Crawler implements CrawlMaster {
     @Override
     public void setWorking(boolean working) {
     	if (working) {
-    		tasks += 1; // one for the link extractor
+    		this.tasks.incrementAndGet(); // one for the link extractor
     	} else {
-    		tasks -= 1; // called when link extractor finishes
+    		this.tasks.decrementAndGet(); // called when link extractor finishes
     	}
+    	System.out.println(tasks);
     }
 
     /**
@@ -99,7 +101,6 @@ public class Crawler implements CrawlMaster {
     public void shutdown() {
     	cluster.killTopology("crawl");
     	cluster.shutdown();
-    	System.exit(0);
     }
 
     /**

@@ -3,9 +3,9 @@ package edu.upenn.cis.cis455.crawler;
 public interface CrawlMaster {
 
     /**
-     * Workers can poll this to see if they should exit, ie the crawl is done
+     * Workers can poll this to see if they should exit, ie the crawl is processing urls
      */
-    public boolean isDone();
+    public boolean isWorking();
 
     /**
      * Workers should notify when they are processing an URL

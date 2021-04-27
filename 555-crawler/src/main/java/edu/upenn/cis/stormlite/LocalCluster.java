@@ -87,7 +87,7 @@ public class LocalCluster implements Runnable {
 		createRoutes(topo, config);
 		
 		// Put the run method in a background thread
-		new Thread(this).start();;
+		new Thread(this).start();
 	}
 	
 	public void run() {

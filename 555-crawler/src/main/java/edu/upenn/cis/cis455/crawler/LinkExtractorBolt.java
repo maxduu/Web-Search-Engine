@@ -53,6 +53,7 @@ public class LinkExtractorBolt implements IRichBolt {
 
 	@Override
 	public void execute(Tuple input) {
+		System.err.println("IN LINK EXTRACTOR");
 		String currentUrl = input.getStringByField("url");
 		String content = input.getStringByField("document");
 		String type = input.getStringByField("type");
@@ -72,6 +73,7 @@ public class LinkExtractorBolt implements IRichBolt {
 			try {
 				if (WorkerRouter.sendUrlToWorker(nextUrl, WorkerServer.config.get("workers")).getResponseCode() !=
 						HttpURLConnection.HTTP_OK) {
+					WorkerServer.crawler.setWorking(false);
 					throw new RuntimeException("Worker add start URL request failed");
 				}
 			} catch (IOException e) {

@@ -52,7 +52,7 @@ public class QueueSpout implements IRichSpout {
 	}
 
 	@Override
-	public void nextTuple() {
+	public void nextTuple() {		
 		try {
 			String url = WorkerServer.crawler.queue.take();
 
