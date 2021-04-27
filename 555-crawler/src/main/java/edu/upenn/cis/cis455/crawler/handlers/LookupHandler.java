@@ -7,7 +7,7 @@ import spark.HaltException;
 import static spark.Spark.halt;
 
 import edu.upenn.cis.cis455.storage.Document;
-import edu.upenn.cis.cis455.storage.StorageInterface;
+import edu.upenn.cis.cis455.storage.MasterStorageInterface;
 
 /**
  * Handler for the lookup request
@@ -15,9 +15,9 @@ import edu.upenn.cis.cis455.storage.StorageInterface;
  *
  */
 public class LookupHandler implements Route {
-    StorageInterface db;
+    MasterStorageInterface db;
 
-    public LookupHandler(StorageInterface db) {
+    public LookupHandler(MasterStorageInterface db) {
         this.db = db;
     }
 

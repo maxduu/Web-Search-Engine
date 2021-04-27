@@ -3,7 +3,7 @@ package edu.upenn.cis.cis455.storage;
 import java.util.Collection;
 import java.util.Set;
 
-public interface StorageInterface {
+public interface MasterStorageInterface {
 
     /**
      * How many documents so far?

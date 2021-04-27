@@ -9,8 +9,7 @@ import java.util.List;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import edu.upenn.cis.cis455.storage.StorageFactory;
-import edu.upenn.cis.cis455.storage.StorageInterface;
+import edu.upenn.cis.cis455.storage.MasterStorageInterface;
 import edu.upenn.cis.stormlite.Config;
 import edu.upenn.cis.stormlite.LocalCluster;
 import edu.upenn.cis.stormlite.Topology;

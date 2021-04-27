@@ -99,6 +99,7 @@ public class DocumentFetchBolt implements IRichBolt {
 				}
 			} else {
 				System.err.println("Null header");
+				System.err.println(urlConnection.getHeaderFields().keySet());
 				WorkerServer.crawler.setWorking(false);
 				return;
 			}
@@ -113,6 +114,7 @@ public class DocumentFetchBolt implements IRichBolt {
 				}
 			} else {
 				System.err.println("Null header");
+				System.err.println(urlConnection.getHeaderFields().keySet());
 				WorkerServer.crawler.setWorking(false);
 				return;
 			}

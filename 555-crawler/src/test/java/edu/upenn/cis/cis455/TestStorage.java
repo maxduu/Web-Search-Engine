@@ -7,8 +7,8 @@ import java.nio.file.Paths;
 import org.junit.Before;
 import org.junit.Test;
 
-import edu.upenn.cis.cis455.storage.StorageFactory;
-import edu.upenn.cis.cis455.storage.StorageInterface;
+import edu.upenn.cis.cis455.storage.MasterStorage;
+import edu.upenn.cis.cis455.storage.MasterStorageInterface;
 import junit.framework.TestCase;
 
 public class TestStorage extends TestCase {
@@ -31,7 +31,7 @@ public class TestStorage extends TestCase {
      */
     @Test
     public void testDontStoreSameDocument() {
-		StorageInterface database = StorageFactory.getDatabaseInstance(testPath);
+		MasterStorageInterface database = new MasterStorage(testPath);
     	
     	database.addDocument("http://yahoo.com", "HELLO", "text/html", true);  
     	database.addDocument("http://google.com", "HELLO", "text/html", true);  
@@ -47,7 +47,7 @@ public class TestStorage extends TestCase {
      */
     @Test
     public void testDocumentLookup() {
-		StorageInterface database = StorageFactory.getDatabaseInstance(testPath);
+		MasterStorageInterface database = new MasterStorage(testPath);
     	
     	database.addDocument("http://google.com", "HELLO", "text/html", true);  
     	database.addDocument("http://google.com", "HELLO", "text/html", true);  

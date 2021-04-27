@@ -22,7 +22,7 @@ import com.sleepycat.persist.StoreConfig;
 
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 
-public class MasterStorage implements StorageInterface {
+public class MasterStorage implements MasterStorageInterface {
 	
 	Environment env;
 	

@@ -16,6 +16,7 @@ import java.util.Map;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import edu.upenn.cis.cis455.crawler.handlers.LookupHandler;
 import edu.upenn.cis.cis455.crawler.utils.DocumentPost;
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 import edu.upenn.cis.cis455.crawler.utils.WorkerRouter;
@@ -111,10 +112,14 @@ public class MasterServer {
 			return "<h1>Shutdown</h1>";
 		});
 		
+		get("/lookup", new LookupHandler(masterStorage));
+		
 		post("/putdocument", (req, res) -> {
             final ObjectMapper om = new ObjectMapper();
             om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
             DocumentPost body = om.readValue(req.body(), DocumentPost.class);
+            
+            System.err.println("Master received " + body.url);
 			
 			AddDocumentResponse response = masterStorage.addDocument(body.url, body.contents, body.type, body.modified);
 			

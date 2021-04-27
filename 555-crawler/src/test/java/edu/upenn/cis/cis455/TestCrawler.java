@@ -8,8 +8,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import edu.upenn.cis.cis455.crawler.Crawler;
-import edu.upenn.cis.cis455.storage.StorageFactory;
-import edu.upenn.cis.cis455.storage.StorageInterface;
+import edu.upenn.cis.cis455.storage.MasterStorageInterface;
 import junit.framework.TestCase;
 
 public class TestCrawler extends TestCase {
