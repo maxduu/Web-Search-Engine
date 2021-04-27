@@ -32,6 +32,25 @@ public class RobotsTxtUtils {
 		parseRobotsTxt();
 	}
 	
+	private String getRegex(String template) {
+		String[] templateSplit = template.split("/", -1);
+		String templateRegex = "";
+		
+		for (int i = 1; i < templateSplit.length; i++ ) {
+			if (templateSplit[i].equals("*")) {
+				if (i == templateSplit.length - 1) {
+					templateRegex += "/.*";
+				} else {
+					templateRegex += "/.+";
+				}
+			} else {
+				templateRegex += "/" + templateSplit[i];
+			}
+		}
+		
+		return templateRegex + ".*";
+	}
+	
 	/**
 	 * See if a filePath is listed under Allow: filePath
 	 * @param filePath
@@ -39,7 +58,9 @@ public class RobotsTxtUtils {
 	 */
 	public boolean isAllowed(String filePath) {
 		for (String path : allowed) {
-			if (filePath.startsWith(path)) {
+			if (path.endsWith("$") && filePath.equals(path.substring(0, path.length()-1))) {
+				return true;
+			} else if (filePath.matches(getRegex(path))) {
 				return true;
 			}
 		}
@@ -53,7 +74,9 @@ public class RobotsTxtUtils {
 	 */
 	public boolean isDisallowed(String filePath) {
 		for (String path : disallowed) {
-			if (filePath.startsWith(path)) {
+			if (path.endsWith("$") && filePath.equals(path.substring(0, path.length()-1))) {
+				return true;
+			} else if (filePath.matches(getRegex(path))) {
 				return true;
 			}
 		}
@@ -105,7 +128,7 @@ public class RobotsTxtUtils {
 			// case when no robots.txt exists
 			return;
 		}
-    	
+
 		// split the robots.txt file by lines
     	String[] lineSplit = content.split("\n");
     	String currentUserAgent = "";
