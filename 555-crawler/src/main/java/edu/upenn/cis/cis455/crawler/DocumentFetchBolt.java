@@ -67,8 +67,20 @@ public class DocumentFetchBolt implements IRichBolt {
 
 	@Override
 	public void cleanup() {
-		// TODO Auto-generated method stub
-		
+		if (documentBatch.size() > 0) {
+	    	List<Integer> documentIds;
+			try {
+				documentIds = WorkerServer.workerStorage.batchWriteDocuments(documentBatch);
+		    	for (int i = 0; i < documentIds.size(); i++) {
+		    		Document doc = documentBatch.get(i);
+					collector.emit(new Values<Object>(documentIds.get(i), doc.getUrl(), doc.getContent(), doc.getType()));
+		    	}
+		    		
+			    documentBatch = new ArrayList<Document>();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}		    	
+		}
 	}
 
 	@Override

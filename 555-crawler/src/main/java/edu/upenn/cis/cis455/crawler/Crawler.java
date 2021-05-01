@@ -74,7 +74,8 @@ public class Crawler implements CrawlMaster {
     public boolean isWorking() {
     	// we are done when the queue is empty or we've gotten the max number of docs and all worker tasks 
     	// are finished
-        return this.tasks.get() != 0;
+//        return this.tasks.get() != 0;
+    	return false;
     }
 
     /**
