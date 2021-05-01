@@ -5,8 +5,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.sql.SQLException;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import javax.net.ssl.HttpsURLConnection;
@@ -20,7 +25,7 @@ import edu.upenn.cis.cis455.crawler.utils.HttpDateUtils;
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 import edu.upenn.cis.cis455.crawler.utils.WorkerRouter;
 import edu.upenn.cis.cis455.crawler.worker.WorkerServer;
-import edu.upenn.cis.cis455.storage.AddDocumentResponse;
+import edu.upenn.cis.cis455.storage.Document;
 import edu.upenn.cis.stormlite.OutputFieldsDeclarer;
 import edu.upenn.cis.stormlite.TopologyContext;
 import edu.upenn.cis.stormlite.bolt.IRichBolt;
@@ -38,10 +43,17 @@ import edu.upenn.cis.stormlite.tuple.Values;
 public class DocumentFetchBolt implements IRichBolt {
 	static Logger log = LogManager.getLogger(DocumentFetchBolt.class);
 	
+	public static final int BATCH_SIZE = 20;
+	
 	Fields schema = new Fields("id", "url", "document", "type");
     String executorId = UUID.randomUUID().toString();
     private OutputCollector collector;
     Crawler crawlerInstance = WorkerServer.crawler;
+    
+    // TODO: temporary, will change to persistent BerkeleyDB
+    Map<String, Date> urlSeen = new HashMap<String, Date>();
+    
+    List<Document> documentBatch = new ArrayList<Document>();
 
 	@Override
 	public String getExecutorId() {
@@ -94,13 +106,13 @@ public class DocumentFetchBolt implements IRichBolt {
 				if (!contentType.startsWith("text/html") && !contentType.startsWith("text/xml") && 
 						!contentType.startsWith("application/xml") && !contentType.contains("+xml")) {
 					System.err.println(url + " content type not compatible");
-					WorkerServer.crawler.setWorking(false);
+//					WorkerServer.crawler.setWorking(false);
 					return;
 				}
 			} else {
 				System.err.println("Null header");
 				System.err.println(urlConnection.getHeaderFields().keySet());
-				WorkerServer.crawler.setWorking(false);
+//				WorkerServer.crawler.setWorking(false);
 				return;
 			}
 			
@@ -109,13 +121,13 @@ public class DocumentFetchBolt implements IRichBolt {
 				int contentLength = Integer.parseInt(urlConnection.getHeaderField("Content-Length"));
 				if (contentLength > 1000000 * crawlerInstance.maxDocSize) {
 					System.err.println(url + " content type too long");
-					WorkerServer.crawler.setWorking(false);
+//					WorkerServer.crawler.setWorking(false);
 					return;
 				}
 			} else {
 				System.err.println("Null header");
 				System.err.println(urlConnection.getHeaderFields().keySet());
-				WorkerServer.crawler.setWorking(false);
+//				WorkerServer.crawler.setWorking(false);
 				return;
 			}
 			
@@ -127,42 +139,43 @@ public class DocumentFetchBolt implements IRichBolt {
 	    	// correct domain
 	    	if (!urlInfo.getDomain().equals(currentUrlInfo.getDomain())) {
 	    		WorkerRouter.sendUrlToWorker(currentUrl, WorkerServer.config.get("workers"));
-	    		WorkerServer.crawler.setWorking(false);
+//	    		WorkerServer.crawler.setWorking(false);
 	    		return;
 	    	} else if (crawlerInstance.queue.getDomainQueue(currentUrlInfo.getDomain()) != null) {
 	    		DomainQueue dq = crawlerInstance.queue.getDomainQueue(currentUrlInfo.getDomain());
 	    		
 	    		// if domain is the same domain, make sure the redirect url is allowed
 	    		if (dq.checkDisallowed(currentUrl)) {
-	    			WorkerServer.crawler.setWorking(false);
+//	    			WorkerServer.crawler.setWorking(false);
 	    			return;
 	    		}
 	    	}
 			
 	    	// check if the url has been stored before and see if it has been modified since
-	    	// TODO: ADD THIS BACK WHEN WE CAN USE RDS TO SHARE DATABASE ACROSS INSTANCES
-//			if (crawlerInstance.db.urlSeen(currentUrl)) {
-//				edu.upenn.cis.cis455.storage.Document doc = crawlerInstance.db.getDocumentObjectByUrl(currentUrl);
-//				if (urlConnection.getHeaderField("Last-Modified") != null) {
-//					String lastModifiedString = urlConnection.getHeaderField("Last-Modified");
-//					Date lastModified = HttpDateUtils.parseHttpString(lastModifiedString);
-//					if (lastModified.before(doc.lastCrawled)) {
-//						
-//						// document wasn't modified, but we still need to add the hash
-//						AddDocumentResponse res = crawlerInstance.db.addDocument(currentUrl, doc.content, contentType, false);
-//						log.info(url + ": not modified");
-//
-//						// we can use the db copy if we haven't hashed the doc yet
-//						if (!res.contentSeen) {
-//							collector.emit(new Values<Object>(res.documentId, currentUrl, doc.content, 
-//									urlConnection.getHeaderField("Content-Type")));
-//						} else {
+			if (urlSeen.containsKey(currentUrl)) {
+				Date lastCrawled = urlSeen.get(currentUrl);
+				if (urlConnection.getHeaderField("Last-Modified") != null) {
+					String lastModifiedString = urlConnection.getHeaderField("Last-Modified");
+					Date lastModified = HttpDateUtils.parseHttpString(lastModifiedString);
+					if (lastModified.before(lastCrawled)) { // add and more than one hour difference
+						// document wasn't modified, but we still need to add the hash
+						Document oldDoc = WorkerServer.workerStorage.getDocumentContent(currentUrl);
+						System.out.println(currentUrl);
+						System.out.println(oldDoc.getContent());
+						int resCode = WorkerRouter.sendDocumentHashToMaster(WorkerServer.masterServer, oldDoc.getContent())
+								.getResponseCode();
+
+						// we can use the db copy if we haven't hashed the doc yet
+						if (resCode == 200) {
+							collector.emit(new Values<Object>(oldDoc.getId(), currentUrl, oldDoc.getContent(), 
+									urlConnection.getHeaderField("Content-Type")));
+						} else {
 //							WorkerServer.crawler.setWorking(false);
-//						}
-//						return;
-//					}
-//				}
-//			}
+						}
+						return;
+					}
+				}
+			}
 	    	
 	    	System.err.println("about to download");
 			
@@ -184,29 +197,35 @@ public class DocumentFetchBolt implements IRichBolt {
 		    		    
 		    // add content to the database - this will check if the document contents 
 		    // have been hashed and index accordingly
-		    InputStream inputStream = WorkerRouter.sendDocumentToMaster(WorkerServer.masterServer, currentUrl, content, 
-		    		contentType, true).getInputStream();
+			int resCode = WorkerRouter.sendDocumentHashToMaster(WorkerServer.masterServer, content)
+					.getResponseCode();
 		    
-		    System.err.println("send doc to master");
-		    
-	        final ObjectMapper om = new ObjectMapper();
-	        om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
-		    AddDocumentResponse res = om.readValue(inputStream, AddDocumentResponse.class);
-		    
-		    System.err.println("got response from master");
-		    		    
-		    // if the contents haven't been hashed and we indexed the doc, we increment 
-		    // the crawler's counts and emit
-		    if (!res.contentSeen) {
-		    	System.err.println("EMIT");
-				collector.emit(new Values<Object>(res.documentId, currentUrl, content, 
-						urlConnection.getHeaderField("Content-Type")));
-		    } else {
+			if (resCode != 200) {
 		    	System.err.println("Content seen");
-		    	WorkerServer.crawler.setWorking(false);
+		    	return;
+			}
+		    
+		    System.err.println("batch docs");
+		    
+		    documentBatch.add(new Document(currentUrl, content, urlConnection.getHeaderField("Content-Type")));
+		    
+		    if (documentBatch.size() >= BATCH_SIZE || WorkerServer.crawler.queue.size == 0) {
+		    	List<Integer> documentIds = WorkerServer.workerStorage.batchWriteDocuments(documentBatch);		    	
+		    	for (int i = 0; i < documentIds.size(); i++) {
+		    		Document doc = documentBatch.get(i);
+					collector.emit(new Values<Object>(documentIds.get(i), doc.getUrl(), doc.getContent(), doc.getType()));
+		    	}
+		    		
+			    documentBatch = new ArrayList<Document>();
 		    }
         } catch (IOException e) {
-        	WorkerServer.crawler.setWorking(false);
+//        	WorkerServer.crawler.setWorking(false);
+			e.printStackTrace();
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}

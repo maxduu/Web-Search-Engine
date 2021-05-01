@@ -60,7 +60,7 @@ public class LinkExtractorBolt implements IRichBolt {
 
 		// ignore non html documents (xml docs)
 		if (!type.startsWith("text/html")) {
-			WorkerServer.crawler.setWorking(false);
+//			WorkerServer.crawler.setWorking(false);
 			return;
 		}
 		
@@ -73,7 +73,7 @@ public class LinkExtractorBolt implements IRichBolt {
 			try {
 				if (WorkerRouter.sendUrlToWorker(nextUrl, WorkerServer.config.get("workers")).getResponseCode() !=
 						HttpURLConnection.HTTP_OK) {
-					WorkerServer.crawler.setWorking(false);
+//					WorkerServer.crawler.setWorking(false);
 					throw new RuntimeException("Worker add start URL request failed");
 				}
 			} catch (IOException e) {
@@ -82,7 +82,7 @@ public class LinkExtractorBolt implements IRichBolt {
 	    }
 	    
 	    // link extract task finished
-	    WorkerServer.crawler.setWorking(false);
+//	    WorkerServer.crawler.setWorking(false);
 	}
 
 	@Override

@@ -11,12 +11,15 @@ import java.util.Map;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.upenn.cis.cis455.crawler.Crawler;
+import edu.upenn.cis.cis455.storage.WorkerStorage;
+import edu.upenn.cis.cis455.storage.WorkerStorageInterface;
 
 public class WorkerServer {
 
 	public static Map<String, String> config;
 	public static Crawler crawler;
 	public static String masterServer;
+	public static WorkerStorageInterface workerStorage;
 
 	public static void main(String[] args) throws IOException {
 		if (args.length < 3) {
@@ -38,6 +41,7 @@ public class WorkerServer {
 		if (!directory.exists()) {
 			directory.mkdirs();
 		}
+		workerStorage = new WorkerStorage();
 
 		System.out.println("Worker node startup, on port " + myPort);
 

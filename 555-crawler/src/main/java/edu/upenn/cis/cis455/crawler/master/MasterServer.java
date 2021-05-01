@@ -8,6 +8,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,17 +18,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import edu.upenn.cis.cis455.crawler.handlers.LookupHandler;
 import edu.upenn.cis.cis455.crawler.utils.DocumentPost;
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 import edu.upenn.cis.cis455.crawler.utils.WorkerRouter;
-import edu.upenn.cis.cis455.storage.AddDocumentResponse;
 import edu.upenn.cis.cis455.storage.MasterStorage;
+import edu.upenn.cis.cis455.storage.MasterStorageInterface;
 
 public class MasterServer {
 	
 	private static List<String> workerList = new ArrayList<String>();
-	private static MasterStorage masterStorage;
+	private static MasterStorageInterface masterStorage;
 	private static AtomicInteger documentsCrawled = new AtomicInteger();
 	private static int stopCount;
 	
@@ -88,7 +88,7 @@ public class MasterServer {
         }
         
         String startUrl = args[0];
-        String rdsPath = args[1];
+        String storagePath = args[1];
         int size = Integer.valueOf(args[2]);
         stopCount = Integer.valueOf(args[3]);
         int myPort = Integer.valueOf(args[4]);
@@ -96,11 +96,11 @@ public class MasterServer {
         port(myPort);
         
         // TODO: THIS IS TEMP UNTIL RDS IS SET UP
-        File directory = new File(rdsPath);
+        File directory = new File(storagePath);
         if (! directory.exists()){
             directory.mkdirs();
         } 
-        masterStorage = new MasterStorage(rdsPath);
+        masterStorage = new MasterStorage(storagePath);
         
         System.out.println("Master node startup, on port " + myPort);
 
@@ -149,28 +149,13 @@ public class MasterServer {
 			return "<h1>Shutdown</h1>";
 		});
 		
-		get("/lookup", new LookupHandler(masterStorage));
-		
-		post("/putdocument", (req, res) -> {
-            final ObjectMapper om = new ObjectMapper();
-            om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
-            DocumentPost body = om.readValue(req.body(), DocumentPost.class);
-            
-            System.err.println("Master received " + body.url);
-			
-			AddDocumentResponse response = masterStorage.addDocument(body.url, body.contents, body.type, body.modified);
-			
-			if (!response.contentSeen && body.modified) {
-				documentsCrawled.incrementAndGet();
-			}
-			
-			if (documentsCrawled.get() == stopCount) {
-				shutdown();
-			}
-			
-			ObjectMapper mapper = new ObjectMapper();
-	        mapper.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
-	        return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(response);	        
+		post("/put-content-hash", (req, res) -> {
+            String hashedContent = req.body();		
+            boolean hashSeen = masterStorage.addDocumentHash(hashedContent);
+            if (hashSeen) {
+            	halt(409);
+            }
+            return "";
 		});
 		
 	}	

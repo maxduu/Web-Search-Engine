@@ -10,7 +10,7 @@ public interface CrawlMaster {
     /**
      * Workers should notify when they are processing an URL
      */
-    public void setWorking(boolean working);
+//    public void setWorking(boolean working);
 
     /**
      * Workers should call this when they exit, so the master knows when it can shut

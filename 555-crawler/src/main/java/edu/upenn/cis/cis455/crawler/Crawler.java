@@ -80,15 +80,15 @@ public class Crawler implements CrawlMaster {
     /**
      * Workers should notify when they are processing an URL
      */
-    @Override
-    public void setWorking(boolean working) {
-    	if (working) {
-    		this.tasks.incrementAndGet(); // one for the link extractor
-    	} else {
-    		this.tasks.decrementAndGet(); // called when link extractor finishes
-    	}
-    	System.out.println(tasks);
-    }
+//    @Override
+//    public void setWorking(boolean working) {
+//    	if (working) {
+//    		this.tasks.incrementAndGet(); // one for the link extractor
+//    	} else {
+//    		this.tasks.decrementAndGet(); // called when link extractor finishes
+//    	}
+//    	System.out.println(tasks);
+//    }
 
     /**
      * Workers should call this when they exit, so the master knows when it can shut

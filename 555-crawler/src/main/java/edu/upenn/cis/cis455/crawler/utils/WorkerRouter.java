@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -50,21 +53,26 @@ public class WorkerRouter {
 		return conn;
 	}
 	
-	public static HttpURLConnection sendDocumentToMaster(String masterAddress, String url, String contents, 
-			String type, boolean modified) throws IOException {
-		URL urlObj = new URL(masterAddress + "/putdocument");
-		DocumentPost reqBody = new DocumentPost(url, contents, type, modified);
+	public static HttpURLConnection sendDocumentHashToMaster(String masterAddress, String documentContents) throws IOException {
+		URL urlObj = new URL(masterAddress + "/put-content-hash");
 		
-		ObjectMapper mapper = new ObjectMapper();
-        mapper.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
-        String body = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(reqBody);
+		MessageDigest digest;
+		String hashedContent = "";
+
+		try {
+			digest = MessageDigest.getInstance("MD5");
+			byte[] encodedhash = digest.digest(documentContents.getBytes(StandardCharsets.UTF_8));
+			hashedContent = new String(encodedhash, StandardCharsets.UTF_8);
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		}
 
 		HttpURLConnection conn = (HttpURLConnection)urlObj.openConnection();
 		conn.setDoOutput(true);
 		conn.setRequestMethod("POST");
 		
 		OutputStream os = conn.getOutputStream();
-		byte[] toSend = body.getBytes();
+		byte[] toSend = hashedContent.getBytes();
 		os.write(toSend);
 		os.flush();
 		

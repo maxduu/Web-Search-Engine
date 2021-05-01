@@ -80,7 +80,7 @@ public class StormCrawlerQueue {
 				
 				// check if the domain queue is in a crawler delay
 				if (domainQueues.get(currIndex).getDelayRemaining() <= 0) {
-					WorkerServer.crawler.setWorking(true);
+//					WorkerServer.crawler.setWorking(true);
 					size--;
 					String url = domainQueues.get(currIndex).take();
 					currIndex++;

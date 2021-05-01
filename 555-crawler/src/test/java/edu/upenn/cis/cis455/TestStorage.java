@@ -26,35 +26,35 @@ public class TestStorage extends TestCase {
         }  
     }
     
-    /**
-     * Makes sure that we don't index the same document with same contents
-     */
-    @Test
-    public void testDontStoreSameDocument() {
-		MasterStorageInterface database = new MasterStorage(testPath);
-    	
-    	database.addDocument("http://yahoo.com", "HELLO", "text/html", true);  
-    	database.addDocument("http://google.com", "HELLO", "text/html", true);  
-
-        assertEquals(1, database.getCorpusSize());
-        
-		database.clearEntries();
-		database.close();
-    }
-    
-    /**
-     * Makes sure we are able to lookup a documents contents
-     */
-    @Test
-    public void testDocumentLookup() {
-		MasterStorageInterface database = new MasterStorage(testPath);
-    	
-    	database.addDocument("http://google.com", "HELLO", "text/html", true);  
-    	database.addDocument("http://google.com", "HELLO", "text/html", true);  
-
-        assertEquals("HELLO", database.getDocument("http://google.com"));
-        
-		database.clearEntries();
-		database.close();
-    }
+//    /**
+//     * Makes sure that we don't index the same document with same contents
+//     */
+//    @Test
+//    public void testDontStoreSameDocument() {
+//		MasterStorageInterface database = new MasterStorage(testPath);
+//    	
+//    	database.addDocument("http://yahoo.com", "HELLO", "text/html", true);  
+//    	database.addDocument("http://google.com", "HELLO", "text/html", true);  
+//
+//        assertEquals(1, database.getCorpusSize());
+//        
+//		database.clearEntries();
+//		database.close();
+//    }
+//    
+//    /**
+//     * Makes sure we are able to lookup a documents contents
+//     */
+//    @Test
+//    public void testDocumentLookup() {
+//		MasterStorageInterface database = new MasterStorage(testPath);
+//    	
+//    	database.addDocument("http://google.com", "HELLO", "text/html", true);  
+//    	database.addDocument("http://google.com", "HELLO", "text/html", true);  
+//
+//        assertEquals("HELLO", database.getDocument("http://google.com"));
+//        
+//		database.clearEntries();
+//		database.close();
+//    }
 }

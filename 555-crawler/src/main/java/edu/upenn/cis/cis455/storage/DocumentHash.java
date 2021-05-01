@@ -12,15 +12,11 @@ import com.sleepycat.persist.model.PrimaryKey;
 public class DocumentHash {
     @PrimaryKey
     public String hash;
-    
-    public int documentId;
 
 	public String toString() {
         StringBuffer buffer = new StringBuffer("DocumentHash[");
         buffer.append("hash=")
                 .append(hash)
-                .append("documentId=")
-                .append(documentId)
                 .append("]");
         return buffer.toString();
     }
