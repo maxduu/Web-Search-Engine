@@ -18,7 +18,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import edu.upenn.cis.cis455.crawler.utils.DocumentPost;
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 import edu.upenn.cis.cis455.crawler.utils.WorkerRouter;
 import edu.upenn.cis.cis455.storage.MasterStorage;
