@@ -59,7 +59,7 @@ public class WorkerServer {
 			om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
 			config = om.readValue(req.body(), Map.class);
 
-			crawler = new Crawler(Integer.parseInt(config.get("size")));
+			crawler = new Crawler(Integer.parseInt(config.get("size")), Integer.parseInt(config.get("count")));
 			crawler.start();
 
 			return "<h1>Start crawling</h1>";
@@ -71,6 +71,11 @@ public class WorkerServer {
 			}
 			
 			System.out.println("WORKER SERVER RECEIVED " + req.body());
+			
+			if (crawler.queue.capacityReached) {
+				return "<h1>Queue already has more than enough URLs</h1>";
+			}
+
 			executor.execute(new Runnable() {
 				@Override
 				public void run() {

@@ -25,13 +25,15 @@ public class Crawler implements CrawlMaster {
 	
     public StormCrawlerQueue queue = new StormCrawlerQueue();
     public int maxDocSize;
+    public int count;
     
     AtomicInteger tasks = new AtomicInteger();
     
     LocalCluster cluster;
 
-    public Crawler(int size) {
+    public Crawler(int size, int count) {
     	this.maxDocSize = size;
+    	this.count = count;
     }
 
     /**

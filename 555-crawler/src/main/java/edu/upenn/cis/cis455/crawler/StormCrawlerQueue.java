@@ -20,6 +20,7 @@ public class StormCrawlerQueue {
 	List<DomainQueue> domainQueues = new ArrayList<DomainQueue>();
 	Map<String, DomainQueue> domainQueueMap = new HashMap<String, DomainQueue>();
 	boolean pause = false;
+	public boolean capacityReached = false;
 	
 	/**
 	 * Get the domain specific queue based on a given domain
@@ -42,6 +43,10 @@ public class StormCrawlerQueue {
 	 * @param url
 	 */
 	public void put(String url) {
+		if (capacityReached) {
+			return;
+		}
+
 		URLInfo info = new URLInfo(url);
 		
 		// get queue corresponding to URL domain
@@ -61,6 +66,10 @@ public class StormCrawlerQueue {
 			if (putSuccess) {
 				System.out.println("QUEUE PUT SUCCESS " + url);
 				size++;
+				
+				if (size >= WorkerServer.crawler.count) {
+					capacityReached = true;
+				}
 			}
 		}
 	}

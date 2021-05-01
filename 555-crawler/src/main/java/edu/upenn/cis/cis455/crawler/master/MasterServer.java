@@ -66,8 +66,6 @@ public class MasterServer {
 			}
 			System.err.println("SHUTDOWN WORKER");
 		}
-		
-		masterStorage.close();
 
 		// Call System.exit via another thread after this function has returned status 200
 		new Thread(new Runnable() {
@@ -78,6 +76,7 @@ public class MasterServer {
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
+				masterStorage.close();
 				System.exit(0);
 			}
 		}).start();
@@ -127,6 +126,7 @@ public class MasterServer {
 			Map<String, String> config = new HashMap<String, String>();
 			config.put("workers", workerList.toString());
 			config.put("size", String.valueOf(size));
+			config.put("count", String.valueOf(stopCount));
 			
 			for (int i = 0; i < workerList.size(); i++) {
 				String dest = workerList.get(i);
