@@ -41,7 +41,7 @@ public class StormCrawlerQueue {
 	 * Put a URL in the crawler queue
 	 * @param url
 	 */
-	public synchronized void put(String url) {
+	public void put(String url) {
 		URLInfo info = new URLInfo(url);
 		
 		// get queue corresponding to URL domain
@@ -59,17 +59,18 @@ public class StormCrawlerQueue {
 			
 			// only increase size if the url is allowed by robots.txt
 			if (putSuccess) {
+				System.out.println("QUEUE PUT SUCCESS " + url);
 				size++;
 			}
 		}
 	}
 	
-	synchronized String take() throws InterruptedException {
+	String take() {
 		int startIndex = currIndex;
 
 		while (true) {
 			// if queue is empty, wait
-			if (size == 0 || pause) {
+			if (size == 0) {
 				return null;
 			}
 			

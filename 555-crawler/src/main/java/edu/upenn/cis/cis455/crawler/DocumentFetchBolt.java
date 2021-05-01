@@ -54,7 +54,7 @@ public class DocumentFetchBolt implements IRichBolt {
     private OutputCollector collector;
     Crawler crawlerInstance = WorkerServer.crawler;
     
-    Queue<Document> documentBatch = new ConcurrentLinkedQueue<Document>();
+    List<Document> documentBatch;
 
 	@Override
 	public String getExecutorId() {
@@ -70,7 +70,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	public void cleanup() {
 		if (documentBatch.size() > 0) {
 	    	try {
-				batchWriteDocuments();
+				batchWriteDocuments(false);
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}	    	
@@ -84,6 +84,12 @@ public class DocumentFetchBolt implements IRichBolt {
         System.err.println(getExecutorId() + " received " + url);
         
         try {
+		    System.out.println("BATCH: " + documentBatch);
+		    System.out.println("QUEUE SIZE: " + crawlerInstance.queue.size);
+    	    if (documentBatch.size() >= BATCH_SIZE || crawlerInstance.queue.size == 0) {
+    	    	batchWriteDocuments(true);
+    	    }
+
 	        URL urlObj = new URL(url);
 			URLInfo urlInfo = new URLInfo(url);
 	
@@ -182,9 +188,9 @@ public class DocumentFetchBolt implements IRichBolt {
 						return;
 					}
 				}
-			} else {
-				WorkerServer.urlSeen.put(currentUrl, new Date());
 			}
+			
+			WorkerServer.urlSeen.put(currentUrl, new Date());
 	    				
 			// open new url connection to fetch the content
 			if (currentUrlInfo.isSecure()) {
@@ -205,17 +211,12 @@ public class DocumentFetchBolt implements IRichBolt {
 			int resCode = WorkerRouter.sendDocumentHashToMaster(WorkerServer.masterServer, content)
 					.getResponseCode();
 		    
-			if (resCode != 200) {
+			if (resCode != HttpURLConnection.HTTP_OK) {
 				System.err.println(url + " Content seen");
 		    	return;
 			}
 		    
 		    documentBatch.add(new Document(currentUrl, content, urlConnection.getHeaderField("Content-Type")));
-		    System.out.println("BATCH SIZE: " + documentBatch.size());
-		    
-		    if (documentBatch.size() >= BATCH_SIZE || WorkerServer.crawler.queue.size == 0) {
-		    	batchWriteDocuments();
-		    }
         } catch (IOException e) {
 //        	WorkerServer.crawler.setWorking(false);
 			e.printStackTrace();
@@ -228,20 +229,23 @@ public class DocumentFetchBolt implements IRichBolt {
 		}
 	}
 	
-	private void batchWriteDocuments() throws SQLException {
-		List<Document> documentBatchList = new ArrayList<Document>(documentBatch);
-    	List<Integer> documentIds = WorkerServer.workerStorage.batchWriteDocuments(documentBatchList);		    	
-    	for (int i = 0; i < documentIds.size(); i++) {
-    		Document doc = documentBatchList.get(i);
-			collector.emit(new Values<Object>(documentIds.get(i), doc.getUrl(), doc.getContent(), doc.getType()));
+	private void batchWriteDocuments(boolean send) throws SQLException {
+    	List<Integer> documentIds = WorkerServer.workerStorage.batchWriteDocuments(documentBatch);
+    	
+    	if (send) {
+	    	for (int i = 0; i < documentIds.size(); i++) {
+	    		Document doc = documentBatch.get(i);
+				collector.emit(new Values<Object>(documentIds.get(i), doc.getUrl(), doc.getContent(), doc.getType()));
+	    	}
     	}
     		
-	    documentBatch = new ConcurrentLinkedQueue<Document>();
+	    documentBatch = new ArrayList<Document>();
 	}
 
 	@Override
 	public void prepare(Map<String, String> stormConf, TopologyContext context, OutputCollector collector) {
         this.collector = collector;
+        this.documentBatch = new ArrayList<Document>();
 	}
 
 	@Override

@@ -60,6 +60,7 @@ public class LinkExtractorBolt implements IRichBolt {
 		// ignore non html documents (xml docs)
 		if (!type.startsWith("text/html")) {
 //			WorkerServer.crawler.setWorking(false);
+			System.out.println("IGNORE NON-XML DOCS");
 			return;
 		}
 		

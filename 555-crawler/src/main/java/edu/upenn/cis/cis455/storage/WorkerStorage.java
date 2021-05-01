@@ -20,7 +20,9 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
 			return documentIds;
 		}
 		
-		String urlInsertQuery = "INSERT INTO urls (url) VALUES (?) RETURNING id";
+		String urlInsertQuery = "INSERT INTO urls (url) VALUES (?) "
+				+ "ON CONFLICT (url) DO UPDATE SET url=excluded.url "
+				+ "RETURNING id";
 		
 		Connection con = getDBConnection();
 		con.setAutoCommit(false);  
@@ -38,7 +40,8 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
         	documentIds.add(urlInsertRs.getInt(1));
         }
         
-        String contentInsertQuery = "INSERT INTO crawler_docs (id, content, type) VALUES (?, ?, ?)";
+        String contentInsertQuery = "INSERT INTO crawler_docs (id, content, type) VALUES (?, ?, ?) "
+        		+ "ON CONFLICT (id) DO UPDATE SET content=excluded.content, type=excluded.type";
 		PreparedStatement contentInsertStmt = con.prepareStatement(contentInsertQuery);
         
 		for (int i = 0; i < documents.size(); i++) {

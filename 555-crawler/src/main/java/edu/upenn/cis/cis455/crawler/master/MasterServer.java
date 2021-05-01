@@ -66,6 +66,8 @@ public class MasterServer {
 			}
 			System.err.println("SHUTDOWN WORKER");
 		}
+		
+		masterStorage.close();
 
 		// Call System.exit via another thread after this function has returned status 200
 		new Thread(new Runnable() {

@@ -47,4 +47,9 @@ public class Document {
 	public String getType() {
 		return type;
 	}
+	
+	@Override
+	public String toString() {
+		return url;
+	}
 }
