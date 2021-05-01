@@ -29,6 +29,8 @@ public class MasterServer {
 	private static MasterStorageInterface masterStorage;
 	private static AtomicInteger documentsCrawled = new AtomicInteger();
 	private static int stopCount;
+	private static int lastCount = -1;
+
 	
 	private static HttpURLConnection postWorkerStart(String address, Map<String, String> config) throws IOException {
 		ObjectMapper mapper = new ObjectMapper();
@@ -158,6 +160,30 @@ public class MasterServer {
             }
             return "";
 		});
+		
+		// check if we've gotten to corpus size or we've crawled all reachable
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				while (true) {
+					try {
+						int currSize = masterStorage.getCorpusSize();
+						if (currSize >= stopCount || currSize == lastCount) {
+							shutdown();
+							break;
+						}
+						lastCount = currSize;
+						Thread.sleep(1000*60*5); // check every five minutes
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					} catch (SQLException e) {
+						e.printStackTrace();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}).start();
 		
 	}	
 }

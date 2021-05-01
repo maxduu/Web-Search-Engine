@@ -1,4 +1,8 @@
-2021-05-01 23:05:36.552 UTC INFO [master-storage] Start DB remove/truncate scan, id=1 dbId=7 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
-2021-05-01 23:05:36.556 UTC INFO [master-storage] End DB remove/truncate scan, id=1 scanned=1 dbId=7 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
-2021-05-01 23:05:36.561 UTC INFO [master-storage] JEErasure soft shutdown initiated.
-2021-05-01 23:05:36.562 UTC INFO [master-storage] RepairReservedFiles-master-storage soft shutdown initiated.
+2021-05-01 23:37:49.515 UTC INFO [master-storage] Start DB remove/truncate scan, id=1 dbId=7 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-05-01 23:37:49.519 UTC INFO [master-storage] End DB remove/truncate scan, id=1 scanned=1 dbId=7 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-05-01 23:37:49.536 UTC INFO [master-storage] JEErasure soft shutdown initiated.
+2021-05-01 23:37:49.536 UTC INFO [master-storage] RepairReservedFiles-master-storage soft shutdown initiated.
+2021-05-01 23:41:26.335 UTC INFO [master-storage] Start DB remove/truncate scan, id=2 dbId=8 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-05-01 23:41:26.348 UTC INFO [master-storage] End DB remove/truncate scan, id=2 scanned=2 dbId=8 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-05-01 23:41:26.358 UTC INFO [master-storage] JEErasure soft shutdown initiated.
+2021-05-01 23:41:26.360 UTC INFO [master-storage] RepairReservedFiles-master-storage soft shutdown initiated.

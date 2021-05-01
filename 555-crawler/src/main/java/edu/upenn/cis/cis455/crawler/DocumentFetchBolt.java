@@ -78,6 +78,7 @@ public class DocumentFetchBolt implements IRichBolt {
 				e.printStackTrace();
 			}	    	
 		}
+		executor.shutdown();
 	}
 	
 	private void checkBatchWrite() throws SQLException {
