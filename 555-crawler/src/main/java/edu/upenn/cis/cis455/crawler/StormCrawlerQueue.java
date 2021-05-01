@@ -26,7 +26,7 @@ public class StormCrawlerQueue {
 	 * @param domain
 	 * @return Queue for given domain
 	 */
-	synchronized DomainQueue getDomainQueue(String domain) {
+	public DomainQueue getDomainQueue(String domain) {
 		return domainQueueMap.get(domain);
 	}
 	
@@ -65,7 +65,7 @@ public class StormCrawlerQueue {
 		}
 	}
 	
-	String take() {
+	public String take() {
 		int startIndex = currIndex;
 
 		while (true) {

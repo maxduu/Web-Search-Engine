@@ -17,6 +17,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -47,8 +49,9 @@ import edu.upenn.cis.stormlite.tuple.Values;
 public class DocumentFetchBolt implements IRichBolt {
 	static Logger log = LogManager.getLogger(DocumentFetchBolt.class);
 	
-	public static final int BATCH_SIZE = 20;
+	public static final int BATCH_SIZE = 10;
 	
+	ExecutorService executor = Executors.newFixedThreadPool(2);
 	Fields schema = new Fields("id", "url", "document", "type");
     String executorId = UUID.randomUUID().toString();
     private OutputCollector collector;
@@ -78,7 +81,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	}
 	
 	private void checkBatchWrite() throws SQLException {
-	    System.out.println("BATCH: " + documentBatch);
+	    System.out.println("BATCH SIZE: " + documentBatch.size() + ", " + documentBatch);
 	    System.out.println("QUEUE SIZE: " + crawlerInstance.queue.size);
 	    if (documentBatch.size() >= BATCH_SIZE || crawlerInstance.queue.size == 0) {
 	    	batchWriteDocuments(true);
@@ -241,14 +244,25 @@ public class DocumentFetchBolt implements IRichBolt {
 	}
 	
 	private void batchWriteDocuments(boolean send) throws SQLException {
-    	List<Integer> documentIds = WorkerServer.workerStorage.batchWriteDocuments(documentBatch);
-    	
-    	if (send) {
-	    	for (int i = 0; i < documentIds.size(); i++) {
-	    		Document doc = documentBatch.get(i);
-				collector.emit(new Values<Object>(documentIds.get(i), doc.getUrl(), doc.getContent(), doc.getType()));
-	    	}
-    	}
+		
+		List<Document> documentBatchCopy = new ArrayList<Document>(documentBatch);
+		
+		executor.execute(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					List<Integer> documentIds = WorkerServer.workerStorage.batchWriteDocuments(documentBatchCopy);
+			    	if (send) {
+				    	for (int i = 0; i < documentIds.size(); i++) {
+				    		Document doc = documentBatchCopy.get(i);
+							collector.emit(new Values<Object>(documentIds.get(i), doc.getUrl(), doc.getContent(), doc.getType()));
+				    	}
+			    	}
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		});
     		
 	    documentBatch = new ArrayList<Document>();
 	}

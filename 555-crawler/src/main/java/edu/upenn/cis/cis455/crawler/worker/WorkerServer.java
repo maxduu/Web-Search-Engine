@@ -9,6 +9,8 @@ import java.net.URL;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -22,6 +24,9 @@ public class WorkerServer {
 	public static Crawler crawler;
 	public static String masterServer;
 	public static WorkerStorageInterface workerStorage;
+	private static ExecutorService executor = Executors.newFixedThreadPool(5);
+	
+	private static boolean stop = false;
 	
     public static Map<String, Date> urlSeen = new HashMap<String, Date>();
 
@@ -61,12 +66,25 @@ public class WorkerServer {
 		});
 
 		post("/enqueue", (req, res) -> {
-			crawler.queue.put(req.body());
+			if (stop) {
+				return "<h1>Worker is shutting down</h1>";
+			}
+			
+			System.out.println("WORKER SERVER RECEIVED " + req.body());
+			executor.execute(new Runnable() {
+				@Override
+				public void run() {
+					crawler.queue.put(req.body());
+				}
+			});
 			return "<h1>URL successfully added to queue</h1>";
 		});
 
 		get("/shutdown", (req, res) -> {
 			System.err.println("IN SHUTDOWN");
+			
+			stop = true;
+			executor.shutdownNow();
 
 			if (crawler != null)
 				crawler.queue.pauseQueue();
