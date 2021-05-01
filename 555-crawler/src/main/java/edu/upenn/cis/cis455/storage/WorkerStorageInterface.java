@@ -2,6 +2,7 @@ package edu.upenn.cis.cis455.storage;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Queue;
 
 public interface WorkerStorageInterface {
 

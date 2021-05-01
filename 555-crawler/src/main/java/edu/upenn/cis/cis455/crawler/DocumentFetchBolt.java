@@ -8,12 +8,16 @@ import java.net.URL;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 import javax.net.ssl.HttpsURLConnection;
 
 import org.apache.logging.log4j.LogManager;
@@ -50,10 +54,7 @@ public class DocumentFetchBolt implements IRichBolt {
     private OutputCollector collector;
     Crawler crawlerInstance = WorkerServer.crawler;
     
-    // TODO: temporary, will change to persistent BerkeleyDB
-    Map<String, Date> urlSeen = new HashMap<String, Date>();
-    
-    List<Document> documentBatch = new ArrayList<Document>();
+    Queue<Document> documentBatch = new ConcurrentLinkedQueue<Document>();
 
 	@Override
 	public String getExecutorId() {
@@ -68,18 +69,11 @@ public class DocumentFetchBolt implements IRichBolt {
 	@Override
 	public void cleanup() {
 		if (documentBatch.size() > 0) {
-	    	List<Integer> documentIds;
-			try {
-				documentIds = WorkerServer.workerStorage.batchWriteDocuments(documentBatch);
-		    	for (int i = 0; i < documentIds.size(); i++) {
-		    		Document doc = documentBatch.get(i);
-					collector.emit(new Values<Object>(documentIds.get(i), doc.getUrl(), doc.getContent(), doc.getType()));
-		    	}
-		    		
-			    documentBatch = new ArrayList<Document>();
+	    	try {
+				batchWriteDocuments();
 			} catch (SQLException e) {
 				e.printStackTrace();
-			}		    	
+			}	    	
 		}
 	}
 
@@ -108,8 +102,6 @@ public class DocumentFetchBolt implements IRichBolt {
 			urlConnection.setRequestMethod("HEAD");
 			urlConnection.setRequestProperty("User-Agent", "cis455crawler");
 			
-			System.err.println("Getting header info");
-			
 			String contentType = "";
 			
 			// check if content type is html or xml
@@ -117,14 +109,13 @@ public class DocumentFetchBolt implements IRichBolt {
 				contentType = urlConnection.getHeaderField("Content-Type");
 				if (!contentType.startsWith("text/html") && !contentType.startsWith("text/xml") && 
 						!contentType.startsWith("application/xml") && !contentType.contains("+xml")) {
-					System.err.println(url + " content type not compatible");
 //					WorkerServer.crawler.setWorking(false);
+					System.err.println(url + " Content type mismatch");
 					return;
 				}
 			} else {
-				System.err.println("Null header");
-				System.err.println(urlConnection.getHeaderFields().keySet());
 //				WorkerServer.crawler.setWorking(false);
+				System.err.println(url + " Content type mismatch");
 				return;
 			}
 			
@@ -132,16 +123,18 @@ public class DocumentFetchBolt implements IRichBolt {
 			if (urlConnection.getHeaderField("Content-Length") != null) {
 				int contentLength = Integer.parseInt(urlConnection.getHeaderField("Content-Length"));
 				if (contentLength > 1000000 * crawlerInstance.maxDocSize) {
-					System.err.println(url + " content type too long");
 //					WorkerServer.crawler.setWorking(false);
 					return;
 				}
-			} else {
-				System.err.println("Null header");
-				System.err.println(urlConnection.getHeaderFields().keySet());
-//				WorkerServer.crawler.setWorking(false);
-				return;
-			}
+			} 
+
+//			else if (urlConnection.getHeaderField("Transfer-Encoding") == null || 
+//					!urlConnection.getHeaderField("Transfer-Encoding").equals("chunked")) {
+//				System.err.println("Missing Content-Length");
+//				System.err.println(urlConnection.getHeaderFields());
+////				WorkerServer.crawler.setWorking(false);
+//				return;
+//			}
 			
 			// get final url after redirects
 	    	currentUrl = urlConnection.getURL().toString();
@@ -164,33 +157,35 @@ public class DocumentFetchBolt implements IRichBolt {
 	    	}
 			
 	    	// check if the url has been stored before and see if it has been modified since
-			if (urlSeen.containsKey(currentUrl)) {
-				Date lastCrawled = urlSeen.get(currentUrl);
+			if (WorkerServer.urlSeen.containsKey(currentUrl)) {
+				Date lastCrawled = WorkerServer.urlSeen.get(currentUrl);
 				if (urlConnection.getHeaderField("Last-Modified") != null) {
 					String lastModifiedString = urlConnection.getHeaderField("Last-Modified");
 					Date lastModified = HttpDateUtils.parseHttpString(lastModifiedString);
 					if (lastModified.before(lastCrawled)) { // add and more than one hour difference
+
 						// document wasn't modified, but we still need to add the hash
 						Document oldDoc = WorkerServer.workerStorage.getDocumentContent(currentUrl);
-						System.out.println(currentUrl);
-						System.out.println(oldDoc.getContent());
-						int resCode = WorkerRouter.sendDocumentHashToMaster(WorkerServer.masterServer, oldDoc.getContent())
-								.getResponseCode();
-
-						// we can use the db copy if we haven't hashed the doc yet
-						if (resCode == 200) {
-							collector.emit(new Values<Object>(oldDoc.getId(), currentUrl, oldDoc.getContent(), 
-									urlConnection.getHeaderField("Content-Type")));
-						} else {
-//							WorkerServer.crawler.setWorking(false);
+						
+						if (oldDoc != null) {
+							int resCode = WorkerRouter.sendDocumentHashToMaster(WorkerServer.masterServer, oldDoc.getContent())
+									.getResponseCode();
+	
+							// we can use the db copy if we haven't hashed the doc yet
+							if (resCode == 200) {
+								collector.emit(new Values<Object>(oldDoc.getId(), currentUrl, oldDoc.getContent(), 
+										urlConnection.getHeaderField("Content-Type")));
+							} else {
+	//							WorkerServer.crawler.setWorking(false);
+							}
 						}
 						return;
 					}
 				}
+			} else {
+				WorkerServer.urlSeen.put(currentUrl, new Date());
 			}
-	    	
-	    	System.err.println("about to download");
-			
+	    				
 			// open new url connection to fetch the content
 			if (currentUrlInfo.isSecure()) {
 				urlConnection = (HttpsURLConnection) urlObj.openConnection();
@@ -204,31 +199,22 @@ public class DocumentFetchBolt implements IRichBolt {
 			in = new BufferedInputStream(urlConnection.getInputStream());
 	    	log.info(url + ": downloading");
 		    String content = new String(in.readAllBytes());
-		    
-		    System.err.println("document downloaded");
-		    		    
+		    		    		    
 		    // add content to the database - this will check if the document contents 
 		    // have been hashed and index accordingly
 			int resCode = WorkerRouter.sendDocumentHashToMaster(WorkerServer.masterServer, content)
 					.getResponseCode();
 		    
 			if (resCode != 200) {
-		    	System.err.println("Content seen");
+				System.err.println(url + " Content seen");
 		    	return;
 			}
 		    
-		    System.err.println("batch docs");
-		    
 		    documentBatch.add(new Document(currentUrl, content, urlConnection.getHeaderField("Content-Type")));
+		    System.out.println("BATCH SIZE: " + documentBatch.size());
 		    
 		    if (documentBatch.size() >= BATCH_SIZE || WorkerServer.crawler.queue.size == 0) {
-		    	List<Integer> documentIds = WorkerServer.workerStorage.batchWriteDocuments(documentBatch);		    	
-		    	for (int i = 0; i < documentIds.size(); i++) {
-		    		Document doc = documentBatch.get(i);
-					collector.emit(new Values<Object>(documentIds.get(i), doc.getUrl(), doc.getContent(), doc.getType()));
-		    	}
-		    		
-			    documentBatch = new ArrayList<Document>();
+		    	batchWriteDocuments();
 		    }
         } catch (IOException e) {
 //        	WorkerServer.crawler.setWorking(false);
@@ -240,6 +226,17 @@ public class DocumentFetchBolt implements IRichBolt {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+	
+	private void batchWriteDocuments() throws SQLException {
+		List<Document> documentBatchList = new ArrayList<Document>(documentBatch);
+    	List<Integer> documentIds = WorkerServer.workerStorage.batchWriteDocuments(documentBatchList);		    	
+    	for (int i = 0; i < documentIds.size(); i++) {
+    		Document doc = documentBatchList.get(i);
+			collector.emit(new Values<Object>(documentIds.get(i), doc.getUrl(), doc.getContent(), doc.getType()));
+    	}
+    		
+	    documentBatch = new ConcurrentLinkedQueue<Document>();
 	}
 
 	@Override

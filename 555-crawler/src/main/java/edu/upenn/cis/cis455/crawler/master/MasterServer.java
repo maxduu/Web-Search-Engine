@@ -151,8 +151,8 @@ public class MasterServer {
 		
 		post("/put-content-hash", (req, res) -> {
             String hashedContent = req.body();		
-            boolean hashSeen = masterStorage.addDocumentHash(hashedContent);
-            if (hashSeen) {
+            boolean newHash = masterStorage.addDocumentHash(hashedContent);
+            if (!newHash) {
             	halt(409);
             }
             return "";

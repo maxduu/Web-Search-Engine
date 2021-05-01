@@ -53,7 +53,6 @@ public class LinkExtractorBolt implements IRichBolt {
 
 	@Override
 	public void execute(Tuple input) {
-		System.err.println("IN LINK EXTRACTOR");
 		String currentUrl = input.getStringByField("url");
 		String content = input.getStringByField("document");
 		String type = input.getStringByField("type");

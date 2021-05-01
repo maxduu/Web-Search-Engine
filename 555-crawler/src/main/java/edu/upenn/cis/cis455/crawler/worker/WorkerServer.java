@@ -6,6 +6,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,6 +22,8 @@ public class WorkerServer {
 	public static Crawler crawler;
 	public static String masterServer;
 	public static WorkerStorageInterface workerStorage;
+	
+    public static Map<String, Date> urlSeen = new HashMap<String, Date>();
 
 	public static void main(String[] args) throws IOException {
 		if (args.length < 3) {
@@ -57,7 +61,6 @@ public class WorkerServer {
 		});
 
 		post("/enqueue", (req, res) -> {
-			System.err.println("Added " + req.body() + " to queue");
 			crawler.queue.put(req.body());
 			return "<h1>URL successfully added to queue</h1>";
 		});
@@ -65,7 +68,8 @@ public class WorkerServer {
 		get("/shutdown", (req, res) -> {
 			System.err.println("IN SHUTDOWN");
 
-			crawler.queue.pauseQueue();
+			if (crawler != null)
+				crawler.queue.pauseQueue();
 
 			new Thread(new Runnable() {
 				@Override
@@ -77,7 +81,8 @@ public class WorkerServer {
 							} catch (InterruptedException e) {
 								e.printStackTrace();
 							}
-						crawler.shutdown();
+						if (crawler != null)
+							crawler.shutdown();
 						Thread.sleep(3000);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
