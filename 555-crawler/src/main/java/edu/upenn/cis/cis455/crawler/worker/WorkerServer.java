@@ -70,11 +70,11 @@ public class WorkerServer {
 				return "<h1>Worker is shutting down</h1>";
 			}
 			
-			System.out.println("WORKER SERVER RECEIVED " + req.body());
-			
 			if (crawler.queue.capacityReached) {
 				return "<h1>Queue already has more than enough URLs</h1>";
 			}
+			
+			System.out.println("WORKER RECEIVED " + req.body());
 
 			executor.execute(new Runnable() {
 				@Override

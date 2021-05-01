@@ -112,6 +112,8 @@ public class DocumentFetchBolt implements IRichBolt {
 			// set request method and user agent
 			urlConnection.setRequestMethod("HEAD");
 			urlConnection.setRequestProperty("User-Agent", "cis455crawler");
+			urlConnection.setConnectTimeout(5000);
+			urlConnection.setReadTimeout(5000);
 			
 			String contentType = "";
 			
@@ -211,6 +213,8 @@ public class DocumentFetchBolt implements IRichBolt {
 			}
 			
 			urlConnection.setRequestProperty("User-Agent", "cis455crawler");
+			urlConnection.setConnectTimeout(5000);
+			urlConnection.setReadTimeout(5000);
 			
 			// download the content
 			in = new BufferedInputStream(urlConnection.getInputStream());
