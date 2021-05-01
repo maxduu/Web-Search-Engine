@@ -76,6 +76,14 @@ public class DocumentFetchBolt implements IRichBolt {
 			}	    	
 		}
 	}
+	
+	private void checkBatchWrite() throws SQLException {
+	    System.out.println("BATCH: " + documentBatch);
+	    System.out.println("QUEUE SIZE: " + crawlerInstance.queue.size);
+	    if (documentBatch.size() >= BATCH_SIZE || crawlerInstance.queue.size == 0) {
+	    	batchWriteDocuments(true);
+	    }
+	}
 
 	@Override
 	public void execute(Tuple input) {
@@ -84,12 +92,6 @@ public class DocumentFetchBolt implements IRichBolt {
         System.err.println(getExecutorId() + " received " + url);
         
         try {
-		    System.out.println("BATCH: " + documentBatch);
-		    System.out.println("QUEUE SIZE: " + crawlerInstance.queue.size);
-    	    if (documentBatch.size() >= BATCH_SIZE || crawlerInstance.queue.size == 0) {
-    	    	batchWriteDocuments(true);
-    	    }
-
 	        URL urlObj = new URL(url);
 			URLInfo urlInfo = new URLInfo(url);
 	
@@ -117,11 +119,13 @@ public class DocumentFetchBolt implements IRichBolt {
 						!contentType.startsWith("application/xml") && !contentType.contains("+xml")) {
 //					WorkerServer.crawler.setWorking(false);
 					System.err.println(url + " Content type mismatch");
+					checkBatchWrite();
 					return;
 				}
 			} else {
 //				WorkerServer.crawler.setWorking(false);
 				System.err.println(url + " Content type mismatch");
+				checkBatchWrite();
 				return;
 			}
 			
@@ -130,6 +134,7 @@ public class DocumentFetchBolt implements IRichBolt {
 				int contentLength = Integer.parseInt(urlConnection.getHeaderField("Content-Length"));
 				if (contentLength > 1000000 * crawlerInstance.maxDocSize) {
 //					WorkerServer.crawler.setWorking(false);
+					checkBatchWrite();
 					return;
 				}
 			} 
@@ -151,6 +156,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	    	if (!urlInfo.getDomain().equals(currentUrlInfo.getDomain())) {
 	    		WorkerRouter.sendUrlToWorker(currentUrl, WorkerServer.config.get("workers"));
 //	    		WorkerServer.crawler.setWorking(false);
+				checkBatchWrite();
 	    		return;
 	    	} else if (crawlerInstance.queue.getDomainQueue(currentUrlInfo.getDomain()) != null) {
 	    		DomainQueue dq = crawlerInstance.queue.getDomainQueue(currentUrlInfo.getDomain());
@@ -158,6 +164,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	    		// if domain is the same domain, make sure the redirect url is allowed
 	    		if (dq.checkDisallowed(currentUrl)) {
 //	    			WorkerServer.crawler.setWorking(false);
+					checkBatchWrite();
 	    			return;
 	    		}
 	    	}
@@ -185,6 +192,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	//							WorkerServer.crawler.setWorking(false);
 							}
 						}
+						checkBatchWrite();
 						return;
 					}
 				}
@@ -213,10 +221,13 @@ public class DocumentFetchBolt implements IRichBolt {
 		    
 			if (resCode != HttpURLConnection.HTTP_OK) {
 				System.err.println(url + " Content seen");
+				checkBatchWrite();
 		    	return;
 			}
-		    
+
 		    documentBatch.add(new Document(currentUrl, content, urlConnection.getHeaderField("Content-Type")));
+		    
+			checkBatchWrite();
         } catch (IOException e) {
 //        	WorkerServer.crawler.setWorking(false);
 			e.printStackTrace();
