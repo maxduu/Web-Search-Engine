@@ -17,10 +17,6 @@ import org.tartarus.snowball.ext.englishStemmer;
 
 import scala.Tuple2;
 
-/** 
- * Computes an approximation to pi
- * Usage: JavaSparkPi [slices]
- */
 public final class Indexer {
 	
 	static final String DB_NAME = "postgres";
@@ -30,8 +26,8 @@ public final class Indexer {
 	static final String HOSTNAME = "cis555-project.ckm3s06jrxk1.us-east-1.rds.amazonaws.com";
 	
 	static final String CRAWLER_DOCS_TABLE_NAME = "crawler_docs_test";
-	static final String INVERTED_INDEX_TABLE_NAME = "inverted_index_test";
-	static final String IDFS_TABLE_NAME = "idfs_test";
+	static final String INVERTED_INDEX_TABLE_NAME = "inverted_index";
+	static final String IDFS_TABLE_NAME = "idfs";
 	
 	public static void main(String[] args) throws Exception {
 		
@@ -44,6 +40,7 @@ public final class Indexer {
 		run(spark);
 		
 		spark.close();
+		
 	}
 	
 	private static void run(SparkSession spark) {
@@ -65,8 +62,8 @@ public final class Indexer {
 		JavaPairRDD<Integer, String> idToContent = 
 				crawlerDocsRDD.mapToPair(row -> new Tuple2<>(row.getAs("id"), row.getAs("content")));
 
-		JavaPairRDD<Tuple2<Integer, String>, Double> pairCounts = idToContent.flatMapToPair(pair -> {
-			List<Tuple2<Tuple2<Integer, String>, Double>> tuples = new LinkedList<>();
+		JavaPairRDD<String, Tuple2<Integer, Double>> pairCounts = idToContent.flatMapToPair(pair -> {
+			List<Tuple2<String, Tuple2<Integer, Double>>> tuples = new LinkedList<>();
 			Map<String, Integer> termToCount = new HashMap<>();
 			// Normalization factor
 			double a = .4;
@@ -96,28 +93,35 @@ public final class Indexer {
 			}
 			for (String term : termToCount.keySet()) {
 				// Normalize term frequency by maximum term frequency in document
-				tuples.add(new Tuple2<>(new Tuple2<>(pair._1, term), a + (1 - a) * ((double) termToCount.get(term) / maxCount)));
+				tuples.add(new Tuple2<>(term, new Tuple2<>(pair._1, a + (1 - a) * ((double) termToCount.get(term) / maxCount))));
 			}
 			
 			return tuples.iterator();
 		});
-
-		// Compute IDFs
-		JavaRDD<IDFEntry> idfEntries = pairCounts.mapToPair(pair -> new Tuple2<>(pair._1._2, 1))
-				.aggregateByKey(0, (v1, x) -> v1 + 1, (v1, v2) -> v1 + v2)
-				.map(pair -> {
-					IDFEntry entry = new IDFEntry();
-					entry.setTerm(pair._1);
-					entry.setIdf(Math.log((double) numDocs / (pair._2 + 1)));
-					return entry;
-				});
 		
-		// Write to inverted_index table
-		JavaRDD<InvertedIndexEntry> invertedIndexEntries = pairCounts.map(pair -> {
+		JavaPairRDD<String, Double> termToIDF = pairCounts.mapToPair(pair -> new Tuple2<>(pair._1, 1))
+				.aggregateByKey(0, (v1, x) -> v1 + 1, (v1, v2) -> v1 + v2)
+				.mapToPair(pair -> new Tuple2<>(pair._1, Math.log((double) numDocs / (pair._2 + 1))));
+		
+		JavaPairRDD<Tuple2<String, Integer>, Tuple2<Double, Double>> termToTFWeights = pairCounts.join(termToIDF)
+				.mapToPair(pair -> new Tuple2<>(new Tuple2<>(pair._1, pair._2._1._1), 
+						new Tuple2<>(pair._2._1._2, pair._2._1._2 * pair._2._2)));
+		
+		// Construct inverted index entries
+		JavaRDD<InvertedIndexEntry> invertedIndexEntries = termToTFWeights.map(pair -> {
 			InvertedIndexEntry entry = new InvertedIndexEntry();
-			entry.setId(pair._1._1);
-			entry.setTerm(pair._1._2);
-			entry.setTf(pair._2);
+			entry.setTerm(pair._1._1);
+			entry.setId(pair._1._2);
+			entry.setTf(pair._2._1);
+			entry.setWeight(pair._2._2);
+			return entry;
+		});
+		
+		// Construct IDF entries
+		JavaRDD<IDFEntry> idfEntries = termToIDF.map(pair -> {
+			IDFEntry entry = new IDFEntry();
+			entry.setTerm(pair._1);
+			entry.setIdf(pair._2);
 			return entry;
 		});
 		
@@ -147,7 +151,7 @@ public final class Indexer {
 			.save();
 		
 		System.out.println("Finished writing to idfs");
-
+		
 	}
 	
 }
