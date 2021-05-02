@@ -9,6 +9,7 @@ public class InvertedIndexEntry implements Serializable {
 	private int id;
 	private String term;
 	private double tf;
+	private double weight;
 	
 	public int getId() {
 		return id;
@@ -22,6 +23,10 @@ public class InvertedIndexEntry implements Serializable {
 		return tf;
 	}
 	
+	public double getWeight() {
+		return weight;
+	}
+	
 	public void setId(int id) {
 		this.id = id;
 	}
@@ -32,6 +37,10 @@ public class InvertedIndexEntry implements Serializable {
 	
 	public void setTf(double tf) {
 		this.tf = tf;
+	}
+	
+	public void setWeight(double weight) {
+		this.weight = weight;
 	}
 	
 }
