@@ -25,12 +25,11 @@ public final class Indexer {
 	static final int PORT = 5432;
 	static final String HOSTNAME = "cis555-project.ckm3s06jrxk1.us-east-1.rds.amazonaws.com";
 	
-	static final String CRAWLER_DOCS_TABLE_NAME = "crawler_docs_test";
+	static final String CRAWLER_DOCS_TABLE_NAME = "crawler_docs_test2";
 	static final String INVERTED_INDEX_TABLE_NAME = "inverted_index";
 	static final String IDFS_TABLE_NAME = "idfs";
 	
 	public static void main(String[] args) throws Exception {
-		
 		SparkSession spark = SparkSession
 				.builder()
 				.appName("Inverted Indexer")
@@ -40,7 +39,6 @@ public final class Indexer {
 		run(spark);
 		
 		spark.close();
-		
 	}
 	
 	private static void run(SparkSession spark) {
@@ -57,7 +55,7 @@ public final class Indexer {
 		Set<String> stopWords = StopWordReader.getStopWords();
 		long numDocs = crawlerDocsDF.count();
 		
-		JavaRDD<Row> crawlerDocsRDD = crawlerDocsDF.javaRDD();
+		JavaRDD<Row> crawlerDocsRDD = crawlerDocsDF.toJavaRDD();
 		
 		JavaPairRDD<Integer, String> idToContent = 
 				crawlerDocsRDD.mapToPair(row -> new Tuple2<>(row.getAs("id"), row.getAs("content")));
@@ -72,14 +70,13 @@ public final class Indexer {
 			
 			String content = pair._2;
 			Document doc = Jsoup.parse(content);
-			String[] rawTerms = doc.text().split("\\s+");
+			String[] rawTerms = doc.text().split("[\\p{Punct}\\s]+");
 			
 			for (String rawTerm : rawTerms) {
 				String term = rawTerm.trim()
-						.replaceFirst("^[^a-zA-Z0-9]+", "")
-						.replaceAll("[^a-zA-Z0-9]+$", "")
-						.toLowerCase();
-				if (!stopWords.contains(term)) {
+						.toLowerCase()
+						.replaceFirst("^[^a-z0-9]+", "");
+				if (!term.isBlank() && !stopWords.contains(term)) {
 					stemmer.setCurrent(term);
 					if (stemmer.stem()){
 					    term = stemmer.getCurrent();
@@ -103,21 +100,20 @@ public final class Indexer {
 				.aggregateByKey(0, (v1, x) -> v1 + 1, (v1, v2) -> v1 + v2)
 				.mapToPair(pair -> new Tuple2<>(pair._1, Math.log((double) numDocs / (pair._2 + 1))));
 		
-		JavaPairRDD<Tuple2<String, Integer>, Tuple2<Double, Double>> termToTFWeights = pairCounts.join(termToIDF)
+		JavaPairRDD<Tuple2<String, Integer>, Double> termToWeights = pairCounts.join(termToIDF)
 				.mapToPair(pair -> new Tuple2<>(new Tuple2<>(pair._1, pair._2._1._1), 
-						new Tuple2<>(pair._2._1._2, pair._2._1._2 * pair._2._2)));
+						pair._2._1._2 * pair._2._2));
 		
-		// Construct inverted index entries
-		JavaRDD<InvertedIndexEntry> invertedIndexEntries = termToTFWeights.map(pair -> {
+		// Construct inverted index entries to add to database
+		JavaRDD<InvertedIndexEntry> invertedIndexEntries = termToWeights.map(pair -> {
 			InvertedIndexEntry entry = new InvertedIndexEntry();
 			entry.setTerm(pair._1._1);
 			entry.setId(pair._1._2);
-			entry.setTf(pair._2._1);
-			entry.setWeight(pair._2._2);
+			entry.setWeight(pair._2);
 			return entry;
 		});
 		
-		// Construct IDF entries
+		// Construct IDF entries to add to database
 		JavaRDD<IDFEntry> idfEntries = termToIDF.map(pair -> {
 			IDFEntry entry = new IDFEntry();
 			entry.setTerm(pair._1);
