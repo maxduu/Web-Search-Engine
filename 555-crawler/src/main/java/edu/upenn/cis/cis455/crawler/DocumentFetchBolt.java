@@ -157,10 +157,12 @@ public class DocumentFetchBolt implements IRichBolt {
 	    	currentUrl = urlConnection.getURL().toString();
 	    	URLInfo currentUrlInfo = new URLInfo(currentUrl);
 	    	
+	    	String currentUrlNormalized = currentUrlInfo.toString();
+	    	
 	    	// if the redirect url is on a different domain, add back into queue for the 
 	    	// correct domain
 	    	if (!urlInfo.getDomain().equals(currentUrlInfo.getDomain())) {
-	    		WorkerRouter.sendUrlToWorker(currentUrl, WorkerServer.config.get("workers"));
+	    		WorkerRouter.sendUrlToWorker(currentUrlNormalized, WorkerServer.config.get("workers"));
 //	    		WorkerServer.crawler.setWorking(false);
 				checkBatchWrite();
 	    		return;
@@ -176,15 +178,15 @@ public class DocumentFetchBolt implements IRichBolt {
 	    	}
 			
 	    	// check if the url has been stored before and see if it has been modified since
-			if (WorkerServer.urlSeen.containsKey(currentUrl)) {
-				Date lastCrawled = WorkerServer.urlSeen.get(currentUrl);
+			if (WorkerServer.urlSeen.containsKey(currentUrlNormalized)) {
+				Date lastCrawled = WorkerServer.urlSeen.get(currentUrlNormalized);
 				if (urlConnection.getHeaderField("Last-Modified") != null) {
 					String lastModifiedString = urlConnection.getHeaderField("Last-Modified");
 					Date lastModified = HttpDateUtils.parseHttpString(lastModifiedString);
 					if (lastModified.before(lastCrawled)) { // add and more than one hour difference
 
 						// document wasn't modified, but we still need to add the hash
-						Document oldDoc = WorkerServer.workerStorage.getDocumentContent(currentUrl);
+						Document oldDoc = WorkerServer.workerStorage.getDocumentContent(currentUrlNormalized);
 						
 						if (oldDoc != null) {
 							int resCode = WorkerRouter.sendDocumentHashToMaster(WorkerServer.masterServer, oldDoc.getContent())
@@ -192,7 +194,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	
 							// we can use the db copy if we haven't hashed the doc yet
 							if (resCode == 200) {
-								collector.emit(new Values<Object>(oldDoc.getId(), currentUrl, oldDoc.getContent(), 
+								collector.emit(new Values<Object>(oldDoc.getId(), currentUrlNormalized, oldDoc.getContent(), 
 										urlConnection.getHeaderField("Content-Type")));
 							} else {
 	//							WorkerServer.crawler.setWorking(false);
@@ -204,7 +206,7 @@ public class DocumentFetchBolt implements IRichBolt {
 				}
 			}
 			
-			WorkerServer.urlSeen.put(currentUrl, new Date());
+			WorkerServer.urlSeen.put(currentUrlNormalized, new Date());
 	    				
 			// open new url connection to fetch the content
 			if (currentUrlInfo.isSecure()) {
@@ -233,7 +235,7 @@ public class DocumentFetchBolt implements IRichBolt {
 		    	return;
 			}
 
-		    documentBatch.add(new Document(currentUrl, content, urlConnection.getHeaderField("Content-Type")));
+		    documentBatch.add(new Document(currentUrlNormalized, content, urlConnection.getHeaderField("Content-Type")));
 		    
 			checkBatchWrite();
         } catch (IOException e) {

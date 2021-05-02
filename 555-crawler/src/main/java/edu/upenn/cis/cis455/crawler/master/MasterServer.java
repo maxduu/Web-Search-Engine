@@ -139,7 +139,7 @@ public class MasterServer {
 				}
 			}
 			
-			if (WorkerRouter.sendUrlToWorker(startUrl, workerList.toString()).getResponseCode() 
+			if (WorkerRouter.sendUrlToWorker(new URLInfo(startUrl).toString(), workerList.toString()).getResponseCode() 
 					!= HttpURLConnection.HTTP_OK) {
 				throw new RuntimeException("Worker add start URL request failed");
 			}
