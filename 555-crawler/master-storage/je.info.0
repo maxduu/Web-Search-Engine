@@ -1,8 +1,8 @@
-2021-05-01 23:37:49.515 UTC INFO [master-storage] Start DB remove/truncate scan, id=1 dbId=7 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
-2021-05-01 23:37:49.519 UTC INFO [master-storage] End DB remove/truncate scan, id=1 scanned=1 dbId=7 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
-2021-05-01 23:37:49.536 UTC INFO [master-storage] JEErasure soft shutdown initiated.
-2021-05-01 23:37:49.536 UTC INFO [master-storage] RepairReservedFiles-master-storage soft shutdown initiated.
-2021-05-01 23:41:26.335 UTC INFO [master-storage] Start DB remove/truncate scan, id=2 dbId=8 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
-2021-05-01 23:41:26.348 UTC INFO [master-storage] End DB remove/truncate scan, id=2 scanned=2 dbId=8 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
-2021-05-01 23:41:26.358 UTC INFO [master-storage] JEErasure soft shutdown initiated.
-2021-05-01 23:41:26.360 UTC INFO [master-storage] RepairReservedFiles-master-storage soft shutdown initiated.
+2021-05-02 07:37:22.318 UTC INFO [master-storage] Start DB remove/truncate scan, id=1 dbId=7 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-05-02 07:37:22.330 UTC INFO [master-storage] End DB remove/truncate scan, id=1 scanned=1 dbId=7 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-05-02 07:37:22.336 UTC INFO [master-storage] JEErasure soft shutdown initiated.
+2021-05-02 07:37:22.337 UTC INFO [master-storage] RepairReservedFiles-master-storage soft shutdown initiated.
+2021-05-02 07:47:17.592 UTC INFO [master-storage] Start DB remove/truncate scan, id=2 dbId=8 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-05-02 07:47:17.622 UTC INFO [master-storage] End DB remove/truncate scan, id=2 scanned=1 dbId=8 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
+2021-05-02 07:47:17.645 UTC INFO [master-storage] JEErasure soft shutdown initiated.
+2021-05-02 07:47:17.646 UTC INFO [master-storage] RepairReservedFiles-master-storage soft shutdown initiated.

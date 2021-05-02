@@ -52,10 +52,12 @@ public class DocumentFetchBolt implements IRichBolt {
 	public static final int BATCH_SIZE = 10;
 	
 	ExecutorService executor = Executors.newFixedThreadPool(2);
-	Fields schema = new Fields("id", "url", "document", "type");
+	Fields schema = new Fields("url", "document", "type");
     String executorId = UUID.randomUUID().toString();
     private OutputCollector collector;
     Crawler crawlerInstance = WorkerServer.crawler;
+    
+    Map<String, Date> urlSeen;
     
     List<Document> documentBatch;
 
@@ -82,7 +84,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	}
 	
 	private void checkBatchWrite() throws SQLException {
-	    System.out.println("BATCH SIZE: " + documentBatch.size() + ", " + documentBatch);
+	    System.out.println("DOCUMENT BATCH SIZE: " + documentBatch.size() + ", " + documentBatch);
 	    System.out.println("QUEUE SIZE: " + crawlerInstance.queue.size);
 	    if (documentBatch.size() >= BATCH_SIZE || crawlerInstance.queue.size == 0) {
 	    	batchWriteDocuments(true);
@@ -178,8 +180,14 @@ public class DocumentFetchBolt implements IRichBolt {
 	    	}
 			
 	    	// check if the url has been stored before and see if it has been modified since
-			if (WorkerServer.urlSeen.containsKey(currentUrlNormalized)) {
-				Date lastCrawled = WorkerServer.urlSeen.get(currentUrlNormalized);
+			if (urlSeen.containsKey(currentUrlNormalized)) {
+				Date lastCrawled = urlSeen.get(currentUrlNormalized);
+				
+				if (crawlerInstance.startDate.before(lastCrawled)) {
+					checkBatchWrite();
+					return;
+				}
+				
 				if (urlConnection.getHeaderField("Last-Modified") != null) {
 					String lastModifiedString = urlConnection.getHeaderField("Last-Modified");
 					Date lastModified = HttpDateUtils.parseHttpString(lastModifiedString);
@@ -194,7 +202,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	
 							// we can use the db copy if we haven't hashed the doc yet
 							if (resCode == 200) {
-								collector.emit(new Values<Object>(oldDoc.getId(), currentUrlNormalized, oldDoc.getContent(), 
+								collector.emit(new Values<Object>(currentUrlNormalized, oldDoc.getContent(), 
 										urlConnection.getHeaderField("Content-Type")));
 							} else {
 	//							WorkerServer.crawler.setWorking(false);
@@ -206,7 +214,7 @@ public class DocumentFetchBolt implements IRichBolt {
 				}
 			}
 			
-			WorkerServer.urlSeen.put(currentUrlNormalized, new Date());
+			urlSeen.put(currentUrlNormalized, new Date());
 	    				
 			// open new url connection to fetch the content
 			if (currentUrlInfo.isSecure()) {
@@ -262,7 +270,7 @@ public class DocumentFetchBolt implements IRichBolt {
 			    	if (send) {
 				    	for (int i = 0; i < documentIds.size(); i++) {
 				    		Document doc = documentBatchCopy.get(i);
-							collector.emit(new Values<Object>(documentIds.get(i), doc.getUrl(), doc.getContent(), doc.getType()));
+							collector.emit(new Values<Object>(doc.getUrl(), doc.getContent(), doc.getType()));
 				    	}
 			    	}
 				} catch (SQLException e) {
@@ -278,6 +286,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	public void prepare(Map<String, String> stormConf, TopologyContext context, OutputCollector collector) {
         this.collector = collector;
         this.documentBatch = new ArrayList<Document>();
+        this.urlSeen = new HashMap<String, Date>();
 	}
 
 	@Override

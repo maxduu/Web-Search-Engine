@@ -1,11 +1,11 @@
 package edu.upenn.cis.cis455.storage;
 
 public class Link {
-	int sourceID;
-	int destID;
+	String sourceUrl;
+	String destUrl;
 	
-	public Link(int sourceID, int destID) {
-		this.sourceID = sourceID;
-		this.destID = destID;
+	public Link(String sourceUrl, String destUrl) {
+		this.sourceUrl = sourceUrl;
+		this.destUrl = destUrl;
 	}	
 }

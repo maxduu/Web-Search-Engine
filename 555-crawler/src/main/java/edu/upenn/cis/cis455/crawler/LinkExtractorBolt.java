@@ -2,6 +2,8 @@ package edu.upenn.cis.cis455.crawler;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -21,6 +23,7 @@ import edu.upenn.cis.stormlite.bolt.OutputCollector;
 import edu.upenn.cis.stormlite.routers.IStreamRouter;
 import edu.upenn.cis.stormlite.tuple.Fields;
 import edu.upenn.cis.stormlite.tuple.Tuple;
+import edu.upenn.cis.cis455.storage.Link;
 
 /**
  * Bolt to extract links from a HTML document
@@ -28,6 +31,8 @@ import edu.upenn.cis.stormlite.tuple.Tuple;
  *
  */
 public class LinkExtractorBolt implements IRichBolt {
+	public static final int BATCH_SIZE = 10;
+
 	static Logger log = LogManager.getLogger(LinkExtractorBolt.class);
 	
 	Fields myFields = new Fields();
@@ -35,6 +40,8 @@ public class LinkExtractorBolt implements IRichBolt {
     String executorId = UUID.randomUUID().toString();
     private OutputCollector collector;
     Crawler crawlerInstance = WorkerServer.crawler;
+    
+    List<Link> linkBatch;
 
 	@Override
 	public String getExecutorId() {
@@ -88,6 +95,7 @@ public class LinkExtractorBolt implements IRichBolt {
 	@Override
 	public void prepare(Map<String, String> stormConf, TopologyContext context, OutputCollector collector) {
 		// TODO Auto-generated method stub
+		this.linkBatch = new ArrayList<Link>();
 	}
 
 	@Override

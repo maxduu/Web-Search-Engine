@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -22,6 +23,8 @@ public class Crawler implements CrawlMaster {
 	private static final String QUEUE_SPOUT = "QUEUE_SPOUT";
     private static final String DOCUMENT_FETCH_BOLT = "DOCUMENT_FETCH_BOLT";
     private static final String LINK_EXTRACTOR_BOLT = "LINK_EXTRACTOR_BOLT";
+    
+    public Date startDate;
 	
     public StormCrawlerQueue queue = new StormCrawlerQueue();
     public int maxDocSize;
@@ -70,6 +73,8 @@ public class Crawler implements CrawlMaster {
 		// submit topology to the cluster
         cluster.submitTopology("crawl", config, 
         		builder.createTopology());
+        
+        startDate = new Date();
     }
 
     @Override

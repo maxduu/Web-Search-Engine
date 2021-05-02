@@ -27,8 +27,6 @@ public class WorkerServer {
 	private static ExecutorService executor = Executors.newFixedThreadPool(5);
 	
 	private static boolean stop = false;
-	
-    public static Map<String, Date> urlSeen = new HashMap<String, Date>();
 
 	public static void main(String[] args) throws IOException {
 		if (args.length < 3) {
@@ -74,12 +72,12 @@ public class WorkerServer {
 				return "<h1>Queue already has more than enough URLs</h1>";
 			}
 			
-			System.out.println("WORKER RECEIVED " + req.body());
+			String body = req.body();
 
 			executor.execute(new Runnable() {
 				@Override
 				public void run() {
-					crawler.queue.put(req.body());
+					crawler.queue.put(body);
 				}
 			});
 			return "<h1>URL successfully added to queue</h1>";
