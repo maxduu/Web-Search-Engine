@@ -61,9 +61,28 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
 	}
 
 	@Override
-	public void batchWriteLinks(List<Link> links) {
-		// TODO Auto-generated method stub
-		return;
+	public void batchWriteLinks(List<Link> links) throws SQLException {
+		System.err.println("BATCH WRITING LINKS");
+		if (links.size() == 0) {
+			return;
+		}
+		
+		String query = "INSERT INTO links_url (source, dest) VALUES (?, ?) "
+				+ "ON CONFLICT (source, dest) DO NOTHING";
+		
+		Connection con = getDBConnection();
+		con.setAutoCommit(false);  
+		PreparedStatement stmt = con.prepareStatement(query);
+		
+		for (Link link : links) {
+			stmt.setString(1, link.sourceUrl);
+			stmt.setString(2, link.destUrl);
+			stmt.addBatch();
+		}
+		
+		stmt.executeBatch();
+        con.commit();
+        con.close();	
 	}
 	
 	@Override

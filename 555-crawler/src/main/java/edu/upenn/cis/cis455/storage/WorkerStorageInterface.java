@@ -8,7 +8,7 @@ public interface WorkerStorageInterface {
 
 	public List<Integer> batchWriteDocuments(List<Document> documents) throws SQLException;
 	
-	public void batchWriteLinks(List<Link> links);
+	public void batchWriteLinks(List<Link> links) throws SQLException;
 	
 	public Document getDocumentContent(String url) throws SQLException;
 

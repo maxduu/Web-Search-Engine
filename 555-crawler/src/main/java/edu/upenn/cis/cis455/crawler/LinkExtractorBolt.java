@@ -2,10 +2,13 @@ package edu.upenn.cis.cis455.crawler;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,6 +17,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 import edu.upenn.cis.cis455.crawler.utils.WorkerRouter;
 import edu.upenn.cis.cis455.crawler.worker.WorkerServer;
 import edu.upenn.cis.stormlite.OutputFieldsDeclarer;
@@ -32,6 +36,8 @@ import edu.upenn.cis.cis455.storage.Link;
  */
 public class LinkExtractorBolt implements IRichBolt {
 	public static final int BATCH_SIZE = 10;
+
+	ExecutorService executor = Executors.newFixedThreadPool(2);
 
 	static Logger log = LogManager.getLogger(LinkExtractorBolt.class);
 	
@@ -56,6 +62,10 @@ public class LinkExtractorBolt implements IRichBolt {
 	@Override
 	public void cleanup() {
 		// TODO Auto-generated method stub
+		if (linkBatch.size() > 0) {
+			batchWriteLinks();    	
+		}
+		executor.shutdown();
 	}
 
 	@Override
@@ -77,6 +87,10 @@ public class LinkExtractorBolt implements IRichBolt {
 	    
 	    for (Element link : links) {
 			String nextUrl = link.absUrl("href");
+			String normalizedUrl = new URLInfo(nextUrl).toString();
+			
+			linkBatch.add(new Link(currentUrl, normalizedUrl));
+			
 			try {
 				if (WorkerRouter.sendUrlToWorker(nextUrl, WorkerServer.config.get("workers")).getResponseCode() !=
 						HttpURLConnection.HTTP_OK) {
@@ -88,8 +102,30 @@ public class LinkExtractorBolt implements IRichBolt {
 			}
 	    }
 	    
+	    if (linkBatch.size() > BATCH_SIZE) {
+	    	batchWriteLinks();
+	    }
+	    
 	    // link extract task finished
 //	    WorkerServer.crawler.setWorking(false);
+	}
+	
+	private void batchWriteLinks() {
+		
+		List<Link> linkBatchCopy = new ArrayList<Link>(linkBatch);
+		
+		executor.execute(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					WorkerServer.workerStorage.batchWriteLinks(linkBatchCopy);
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		});
+    		
+	    linkBatch = new ArrayList<Link>();
 	}
 
 	@Override

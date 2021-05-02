@@ -74,16 +74,12 @@ public class DocumentFetchBolt implements IRichBolt {
 	@Override
 	public void cleanup() {
 		if (documentBatch.size() > 0) {
-	    	try {
-				batchWriteDocuments(false);
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}	    	
+			batchWriteDocuments(false);    	
 		}
 		executor.shutdown();
 	}
 	
-	private void checkBatchWrite() throws SQLException {
+	private void checkBatchWrite() {
 	    System.out.println("DOCUMENT BATCH SIZE: " + documentBatch.size() + ", " + documentBatch);
 	    System.out.println("QUEUE SIZE: " + crawlerInstance.queue.size);
 	    if (documentBatch.size() >= BATCH_SIZE || crawlerInstance.queue.size == 0) {
@@ -258,7 +254,7 @@ public class DocumentFetchBolt implements IRichBolt {
 		}
 	}
 	
-	private void batchWriteDocuments(boolean send) throws SQLException {
+	private void batchWriteDocuments(boolean send) {
 		
 		List<Document> documentBatchCopy = new ArrayList<Document>(documentBatch);
 		
