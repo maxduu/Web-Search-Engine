@@ -25,13 +25,15 @@ public class Crawler implements CrawlMaster {
 	
     public StormCrawlerQueue queue = new StormCrawlerQueue();
     public int maxDocSize;
+    public int count;
     
     AtomicInteger tasks = new AtomicInteger();
     
     LocalCluster cluster;
 
-    public Crawler(int size) {
+    public Crawler(int size, int count) {
     	this.maxDocSize = size;
+    	this.count = count;
     }
 
     /**
@@ -48,9 +50,9 @@ public class Crawler implements CrawlMaster {
         
         // build the topology
         TopologyBuilder builder = new TopologyBuilder();
-        builder.setSpout(QUEUE_SPOUT, queueSpout, 1);
-        builder.setBolt(DOCUMENT_FETCH_BOLT, documentFetchBolt, 10).fieldsGrouping(QUEUE_SPOUT, new Fields("url"));
-        builder.setBolt(LINK_EXTRACTOR_BOLT, linkExtractorBolt, 10).shuffleGrouping(DOCUMENT_FETCH_BOLT);
+        builder.setSpout(QUEUE_SPOUT, queueSpout, 3);
+        builder.setBolt(DOCUMENT_FETCH_BOLT, documentFetchBolt, 6).fieldsGrouping(QUEUE_SPOUT, new Fields("url"));
+        builder.setBolt(LINK_EXTRACTOR_BOLT, linkExtractorBolt, 6).shuffleGrouping(DOCUMENT_FETCH_BOLT);
         
         cluster = new LocalCluster();
         Topology topo = builder.createTopology();

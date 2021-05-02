@@ -59,8 +59,6 @@ public class QueueSpout implements IRichSpout {
 		if (url == null) {
 			return;
 		}
-		
-		System.err.println("SPOUT GET: " + url);
 
 		// if we get a url, we emit it to the document fetch bolt
 		log.debug(getExecutorId() + " emitting " + url);

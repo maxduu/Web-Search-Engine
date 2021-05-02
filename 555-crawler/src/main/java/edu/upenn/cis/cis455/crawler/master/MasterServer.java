@@ -18,7 +18,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import edu.upenn.cis.cis455.crawler.utils.DocumentPost;
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 import edu.upenn.cis.cis455.crawler.utils.WorkerRouter;
 import edu.upenn.cis.cis455.storage.MasterStorage;
@@ -30,6 +29,8 @@ public class MasterServer {
 	private static MasterStorageInterface masterStorage;
 	private static AtomicInteger documentsCrawled = new AtomicInteger();
 	private static int stopCount;
+	private static int lastCount = -1;
+
 	
 	private static HttpURLConnection postWorkerStart(String address, Map<String, String> config) throws IOException {
 		ObjectMapper mapper = new ObjectMapper();
@@ -66,8 +67,6 @@ public class MasterServer {
 			}
 			System.err.println("SHUTDOWN WORKER");
 		}
-		
-		masterStorage.close();
 
 		// Call System.exit via another thread after this function has returned status 200
 		new Thread(new Runnable() {
@@ -78,6 +77,7 @@ public class MasterServer {
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
+				masterStorage.close();
 				System.exit(0);
 			}
 		}).start();
@@ -127,6 +127,7 @@ public class MasterServer {
 			Map<String, String> config = new HashMap<String, String>();
 			config.put("workers", workerList.toString());
 			config.put("size", String.valueOf(size));
+			config.put("count", String.valueOf(stopCount));
 			
 			for (int i = 0; i < workerList.size(); i++) {
 				String dest = workerList.get(i);
@@ -159,6 +160,30 @@ public class MasterServer {
             }
             return "";
 		});
+		
+		// check if we've gotten to corpus size or we've crawled all reachable
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				while (true) {
+					try {
+						int currSize = masterStorage.getCorpusSize();
+						if (currSize >= stopCount || currSize == lastCount) {
+							shutdown();
+							break;
+						}
+						lastCount = currSize;
+						Thread.sleep(1000*60*5); // check every five minutes
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					} catch (SQLException e) {
+						e.printStackTrace();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}).start();
 		
 	}	
 }
