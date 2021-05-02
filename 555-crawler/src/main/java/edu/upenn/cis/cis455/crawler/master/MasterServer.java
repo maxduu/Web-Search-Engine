@@ -84,16 +84,15 @@ public class MasterServer {
 	}
 	
 	public static void main(String[] args) {
-        if (args.length != 5) {
+        if (args.length < 5) {
             System.out.println("Usage: Master Server {start URL} {RDS environment path} {max doc size in MB} {number of files to index} {port}");
             System.exit(1);
         }
         
-        String startUrl = args[0];
-        String storagePath = args[1];
-        int size = Integer.valueOf(args[2]);
-        stopCount = Integer.valueOf(args[3]);
-        int myPort = Integer.valueOf(args[4]);
+        String storagePath = args[0];
+        int size = Integer.valueOf(args[1]);
+        stopCount = Integer.valueOf(args[2]);
+        int myPort = Integer.valueOf(args[3]);
 
         port(myPort);
         
@@ -139,9 +138,12 @@ public class MasterServer {
 				}
 			}
 			
-			if (WorkerRouter.sendUrlToWorker(new URLInfo(startUrl).toString(), workerList.toString()).getResponseCode() 
-					!= HttpURLConnection.HTTP_OK) {
-				throw new RuntimeException("Worker add start URL request failed");
+			for (int i = 4; i < args.length; i++) {
+				String startUrl = args[i];
+				if (WorkerRouter.sendUrlToWorker(new URLInfo(startUrl).toString(), workerList.toString()).getResponseCode() 
+						!= HttpURLConnection.HTTP_OK) {
+					throw new RuntimeException("Worker add start URL request failed");
+				}
 			}
 
 			return "<h1>Started crawling</h1>";

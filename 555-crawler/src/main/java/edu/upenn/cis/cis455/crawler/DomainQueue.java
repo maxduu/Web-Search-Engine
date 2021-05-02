@@ -47,11 +47,15 @@ public class DomainQueue {
 		return urls.contains(url);
 	}
 	
+	public int size() {
+		return urls.size();
+	}
+	
 	/**
 	 * Get the crawler delay that is remaining
 	 * @return
 	 */
-	public long getDelayRemaining() {
+	public double getDelayRemaining() {
 		Date d = new Date();
 		return robotUtil.getDelay() * 1000 - (d.getTime() - lastRequest.getTime());
 	}

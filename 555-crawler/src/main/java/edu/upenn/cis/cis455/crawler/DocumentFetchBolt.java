@@ -51,7 +51,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	
 	public static final int BATCH_SIZE = 10;
 	
-	ExecutorService executor = Executors.newFixedThreadPool(2);
+	ExecutorService executor = Executors.newFixedThreadPool(4);
 	Fields schema = new Fields("url", "document", "type");
     String executorId = UUID.randomUUID().toString();
     private OutputCollector collector;
@@ -80,8 +80,8 @@ public class DocumentFetchBolt implements IRichBolt {
 	}
 	
 	private void checkBatchWrite() {
-	    System.out.println("DOCUMENT BATCH SIZE: " + documentBatch.size() + ", " + documentBatch);
-	    System.out.println("QUEUE SIZE: " + crawlerInstance.queue.size);
+//	    System.out.println("DOCUMENT BATCH SIZE: " + documentBatch.size() + ", " + documentBatch);
+//	    System.out.println("QUEUE SIZE: " + crawlerInstance.queue.size);
 	    if (documentBatch.size() >= BATCH_SIZE || crawlerInstance.queue.size == 0) {
 	    	batchWriteDocuments(true);
 	    }
@@ -91,7 +91,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	public void execute(Tuple input) {
         String url = input.getStringByField("url");
         log.debug(getExecutorId() + " received " + url);
-        System.err.println(getExecutorId() + " received " + url);
+//        System.err.println(getExecutorId() + " received " + url);
         
         try {
 	        URL urlObj = new URL(url);
@@ -122,13 +122,13 @@ public class DocumentFetchBolt implements IRichBolt {
 				if (!contentType.startsWith("text/html") && !contentType.startsWith("text/xml") && 
 						!contentType.startsWith("application/xml") && !contentType.contains("+xml")) {
 //					WorkerServer.crawler.setWorking(false);
-					System.err.println(url + " Content type mismatch");
+					System.err.println(url + " Content type mismatch: " + urlConnection.getHeaderField("Content-Type"));
 					checkBatchWrite();
 					return;
 				}
 			} else {
 //				WorkerServer.crawler.setWorking(false);
-				System.err.println(url + " Content type mismatch");
+				System.err.println(url + " Content type null");
 				checkBatchWrite();
 				return;
 			}
@@ -225,7 +225,7 @@ public class DocumentFetchBolt implements IRichBolt {
 			
 			// download the content
 			in = new BufferedInputStream(urlConnection.getInputStream());
-	    	log.info(url + ": downloading");
+//	    	log.info(url + ": downloading");
 		    String content = new String(in.readAllBytes());
 		    		    		    
 		    // add content to the database - this will check if the document contents 
@@ -239,9 +239,7 @@ public class DocumentFetchBolt implements IRichBolt {
 		    	return;
 			}
 
-		    documentBatch.add(new Document(currentUrlNormalized, content, urlConnection.getHeaderField("Content-Type")));
-		    
-			checkBatchWrite();
+		    documentBatch.add(new Document(currentUrlNormalized, content, urlConnection.getHeaderField("Content-Type")));		    
         } catch (IOException e) {
 //        	WorkerServer.crawler.setWorking(false);
 			e.printStackTrace();
@@ -252,6 +250,8 @@ public class DocumentFetchBolt implements IRichBolt {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
+        checkBatchWrite();
 	}
 	
 	private void batchWriteDocuments(boolean send) {

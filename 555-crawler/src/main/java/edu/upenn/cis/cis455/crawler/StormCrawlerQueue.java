@@ -57,19 +57,19 @@ public class StormCrawlerQueue {
 			q = new DomainQueue(info.getDomain());
 			domainQueueMap.put(info.getDomain(), q);
 			domainQueues.add(q);
+			
+			if (domainQueues.size() >= WorkerServer.crawler.count) {
+				capacityReached = true;
+			}
 		}
 		
-		if (!q.contains(url)) {
+		if (q.size() < WorkerServer.crawler.count && !q.contains(url)) {
 			boolean putSuccess = q.put(url);
 			
 			// only increase size if the url is allowed by robots.txt
 			if (putSuccess) {
-				System.out.println("QUEUE PUT SUCCESS " + url);
+//				System.out.println("QUEUE PUT SUCCESS " + url);
 				size++;
-				
-				if (size >= WorkerServer.crawler.count) {
-					capacityReached = true;
-				}
 			}
 		}
 	}

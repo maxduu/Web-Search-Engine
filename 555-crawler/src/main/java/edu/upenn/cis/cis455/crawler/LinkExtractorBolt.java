@@ -35,9 +35,9 @@ import edu.upenn.cis.cis455.storage.Link;
  *
  */
 public class LinkExtractorBolt implements IRichBolt {
-	public static final int BATCH_SIZE = 10;
+	public static final int BATCH_SIZE = 200;
 
-	ExecutorService executor = Executors.newFixedThreadPool(2);
+	ExecutorService executor = Executors.newFixedThreadPool(4);
 
 	static Logger log = LogManager.getLogger(LinkExtractorBolt.class);
 	
@@ -87,6 +87,11 @@ public class LinkExtractorBolt implements IRichBolt {
 	    
 	    for (Element link : links) {
 			String nextUrl = link.absUrl("href");
+			
+			if (nextUrl.length() == 0) {
+				continue;
+			}
+			
 			String normalizedUrl = new URLInfo(nextUrl).toString();
 			
 			linkBatch.add(new Link(currentUrl, normalizedUrl));

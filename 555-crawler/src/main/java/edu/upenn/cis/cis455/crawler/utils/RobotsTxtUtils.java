@@ -7,6 +7,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -21,7 +23,7 @@ public class RobotsTxtUtils {
 	String domain;
 	Set<String> allowed;
 	Set<String> disallowed;
-	int delay;
+	double delay;
 	
 	public RobotsTxtUtils(String robot, String domain) {
 		this.robot = robot;
@@ -33,22 +35,22 @@ public class RobotsTxtUtils {
 	}
 	
 	private String getRegex(String template) {
-		String[] templateSplit = template.split("/", -1);
-		String templateRegex = "";
+		String regExSpecialChars = "<([{\\^-=$!|]})?+.>";
+		String regExSpecialCharsRE = regExSpecialChars.replaceAll( ".", "\\\\$0");
+		Pattern reCharsREP = Pattern.compile( "[" + regExSpecialCharsRE + "]");
+
+		Matcher m = reCharsREP.matcher(template);
+	    template = m.replaceAll("\\\\$0");
 		
-		for (int i = 1; i < templateSplit.length; i++ ) {
-			if (templateSplit[i].equals("*")) {
-				if (i == templateSplit.length - 1) {
-					templateRegex += "/.*";
-				} else {
-					templateRegex += "/.+";
-				}
-			} else {
-				templateRegex += "/" + templateSplit[i];
-			}
+		template = template.replaceAll("\\*", ".*");
+				
+		if (!template.endsWith("$")) {
+			template += ".*";
+		} else {
+			template = template.substring(0, template.length() - 2);
 		}
 		
-		return templateRegex + ".*";
+		return template;
 	}
 	
 	/**
@@ -58,9 +60,7 @@ public class RobotsTxtUtils {
 	 */
 	public boolean isAllowed(String filePath) {
 		for (String path : allowed) {
-			if (path.endsWith("$") && filePath.equals(path.substring(0, path.length()-1))) {
-				return true;
-			} else if (filePath.matches(getRegex(path))) {
+			if (filePath.matches(getRegex(path))) {
 				return true;
 			}
 		}
@@ -74,9 +74,7 @@ public class RobotsTxtUtils {
 	 */
 	public boolean isDisallowed(String filePath) {
 		for (String path : disallowed) {
-			if (path.endsWith("$") && filePath.equals(path.substring(0, path.length()-1))) {
-				return true;
-			} else if (filePath.matches(getRegex(path))) {
+			if (filePath.matches(getRegex(path))) {
 				return true;
 			}
 		}
@@ -87,7 +85,7 @@ public class RobotsTxtUtils {
 	 * Get the Crawl-delay
 	 * @return
 	 */
-	public int getDelay() {
+	public double getDelay() {
 		return delay;
 	}
 
@@ -180,7 +178,7 @@ public class RobotsTxtUtils {
     		// got crawl delay keyword
     		} else if (line.startsWith("Crawl-delay:") && parseAgent) {
     			String delayString = line.substring(line.indexOf(":") + 1).trim();
-    			delay = Integer.parseInt(delayString);
+    			delay = Double.parseDouble(delayString);
     		}
     	} 	
 	}
