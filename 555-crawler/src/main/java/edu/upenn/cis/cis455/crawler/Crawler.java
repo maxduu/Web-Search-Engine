@@ -1,22 +1,15 @@
 package edu.upenn.cis.cis455.crawler;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import edu.upenn.cis.cis455.storage.MasterStorageInterface;
 import edu.upenn.cis.stormlite.Config;
 import edu.upenn.cis.stormlite.LocalCluster;
 import edu.upenn.cis.stormlite.Topology;
 import edu.upenn.cis.stormlite.TopologyBuilder;
-import edu.upenn.cis.stormlite.tuple.Fields;
 
 public class Crawler implements CrawlMaster {
 	
@@ -53,9 +46,9 @@ public class Crawler implements CrawlMaster {
         
         // build the topology
         TopologyBuilder builder = new TopologyBuilder();
-        builder.setSpout(QUEUE_SPOUT, queueSpout, 3);
-        builder.setBolt(DOCUMENT_FETCH_BOLT, documentFetchBolt, 6).shuffleGrouping(QUEUE_SPOUT);
-        builder.setBolt(LINK_EXTRACTOR_BOLT, linkExtractorBolt, 6).shuffleGrouping(DOCUMENT_FETCH_BOLT);
+        builder.setSpout(QUEUE_SPOUT, queueSpout, 6);
+        builder.setBolt(DOCUMENT_FETCH_BOLT, documentFetchBolt, 8).shuffleGrouping(QUEUE_SPOUT);
+        builder.setBolt(LINK_EXTRACTOR_BOLT, linkExtractorBolt, 8).shuffleGrouping(DOCUMENT_FETCH_BOLT);
         
         cluster = new LocalCluster();
         Topology topo = builder.createTopology();

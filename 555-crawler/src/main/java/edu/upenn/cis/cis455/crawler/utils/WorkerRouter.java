@@ -8,8 +8,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 public class WorkerRouter {
 	
 	private static String[] getWorkers(String list) {

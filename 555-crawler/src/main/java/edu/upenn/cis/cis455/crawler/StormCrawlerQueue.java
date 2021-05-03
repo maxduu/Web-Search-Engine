@@ -1,18 +1,14 @@
 package edu.upenn.cis.cis455.crawler;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.sleepycat.je.ThreadInterruptedException;
 
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 import edu.upenn.cis.cis455.crawler.worker.WorkerServer;
-import edu.upenn.cis.cis455.storage.Domain;
 
 /**
  * Queue that the storm crawler uses
@@ -22,25 +18,12 @@ import edu.upenn.cis.cis455.storage.Domain;
 public class StormCrawlerQueue {
 	
 	AtomicLong size = new AtomicLong();
-	AtomicInteger currIndex = new AtomicInteger();
-	AtomicInteger domainCount = new AtomicInteger();
-	Map<Integer, DomainQueue> domainQueues = new ConcurrentHashMap<Integer, DomainQueue>();
-	Map<String, DomainQueue> domainQueueMap = new ConcurrentHashMap<String, DomainQueue>();
+	Map<String, DomainManager> domainManagerMap = new ConcurrentHashMap<String, DomainManager>();
 	boolean pause = false;
 	public boolean capacityReached = false;
 	
 	public StormCrawlerQueue() {
 		size.set(WorkerServer.workerStorage.getQueueSize());
-		Map<Long, Domain> dbDomains = WorkerServer.workerStorage.getAllDomainObj();
-		
-		for (Long id : dbDomains.keySet()) {
-			System.out.println(id);
-			DomainQueue q = new DomainQueue(dbDomains.get(id));
-			domainQueues.put(id.intValue(), q);
-			domainQueueMap.put(dbDomains.get(id).domain, q);
-		}
-		
-		domainCount.set(dbDomains.size());
 	}
 	
 	/**
@@ -48,8 +31,8 @@ public class StormCrawlerQueue {
 	 * @param domain
 	 * @return Queue for given domain
 	 */
-	public DomainQueue getDomainQueue(String domain) {
-		return domainQueueMap.get(domain);
+	public DomainManager getDomainManager(String domain) {
+		return domainManagerMap.get(domain);
 	}
 	
 	/**
@@ -70,23 +53,21 @@ public class StormCrawlerQueue {
 
 		URLInfo info = new URLInfo(url);
 		
-		// get queue corresponding to URL domain
-		DomainQueue q = domainQueueMap.get(info.getDomain());
+		// get manager corresponding to URL domain
+		DomainManager manager = domainManagerMap.get(info.getDomain());
+		
+		// create if domain manager doesn't exist
+		if (manager == null) {
+			manager = new DomainManager(info.getDomain());
+			domainManagerMap.put(info.getDomain(), manager);
+			
+			if (domainManagerMap.size() >= 1000000) {
+				capacityReached = true;
+			}
+		}
 		
 		try {
-			// create if domain queue doesn't exist
-			if (q == null) {
-				Domain d = WorkerServer.workerStorage.addDomainObj(info.getDomain(), domainCount.getAndIncrement());
-				q = new DomainQueue(d);
-				domainQueues.put((int) d.id, q);
-				domainQueueMap.put(info.getDomain(), q);
-				
-				if (domainQueues.size() >= 1000000) {
-					capacityReached = true;
-				}
-			}
-			
-			boolean putSuccess = q.put(url);
+			boolean putSuccess = WorkerServer.workerStorage.addQueueUrl(url, manager.getNextRequestDate());
 				
 			// only increase size if the url is allowed by robots.txt
 			if (putSuccess) {
@@ -97,42 +78,39 @@ public class StormCrawlerQueue {
 	}
 	
 	public String take() {
-		if (pause) {
+		if (pause || size.get() == 0) {
 			return null;
 		}
-		
-		int startIndex = currIndex.get();
 
-		while (true) {
-			// if queue is empty, wait
-			if (size.get() == 0) {
+		try {
+			size.decrementAndGet();
+			String url = WorkerServer.workerStorage.takeQueueUrl();
+			
+			if (url == null) {
+				size.incrementAndGet();
 				return null;
 			}
 			
-			// wrap around if index gets too large
-			currIndex.set(currIndex.intValue() % domainCount.intValue());
-
-			try {
-				// check if the domain queue is in a crawler delay
-				if (domainQueues.containsKey(currIndex.intValue()) && domainQueues.get(currIndex.intValue()).getDelayRemaining() <= 0) {
-	//				WorkerServer.crawler.setWorking(true);
-					String url = domainQueues.get(currIndex.intValue()).take();
-					if (url != null) {
-						System.out.println(currIndex.get());
-						size.decrementAndGet();
-						currIndex.incrementAndGet();
-						return url;
-					}
-				}
-			} catch (ThreadInterruptedException e) {
+			URLInfo info = new URLInfo(url);
+			DomainManager manager = domainManagerMap.get(info.getDomain());
+			
+			if (manager == null) {
+				manager = new DomainManager(info.getDomain());
+				domainManagerMap.put(info.getDomain(), manager);
 			}
 			
-			currIndex.incrementAndGet();
-			
-			// if we've gone to all indexes and not found anything, return null
-			if (currIndex.intValue() == startIndex) {
+			if (manager.getNextRequestDate().after(new Date())) {
+				WorkerServer.workerStorage.addQueueUrl(url, manager.getNextRequestDate());
+				size.incrementAndGet();
 				return null;
+			} else {
+				manager.madeRequest();
+				return url;
 			}
+			
+		} catch (ThreadInterruptedException e) {
 		}
+		
+		return null;
 	}
 }

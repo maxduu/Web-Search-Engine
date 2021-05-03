@@ -1,8 +1,6 @@
 package edu.upenn.cis.cis455.storage;
 
 import java.sql.SQLException;
-import java.util.Collection;
-import java.util.Set;
 
 public interface MasterStorageInterface {
 

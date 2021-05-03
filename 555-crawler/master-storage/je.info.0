@@ -1,4 +1,0 @@
-2021-05-03 06:21:32.943 UTC INFO [master-storage] Start DB remove/truncate scan, id=1 dbId=7 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
-2021-05-03 06:21:32.964 UTC INFO [master-storage] End DB remove/truncate scan, id=1 scanned=2 dbId=7 dbName=persist#ContentSeen#edu.upenn.cis.cis455.storage.DocumentHash
-2021-05-03 06:21:32.981 UTC INFO [master-storage] JEErasure soft shutdown initiated.
-2021-05-03 06:21:32.982 UTC INFO [master-storage] RepairReservedFiles-master-storage soft shutdown initiated.

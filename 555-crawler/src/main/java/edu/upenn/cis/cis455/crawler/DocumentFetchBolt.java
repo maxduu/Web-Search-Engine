@@ -2,21 +2,15 @@ package edu.upenn.cis.cis455.crawler;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -24,8 +18,6 @@ import javax.net.ssl.HttpsURLConnection;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.upenn.cis.cis455.crawler.utils.HttpDateUtils;
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
@@ -158,8 +150,8 @@ public class DocumentFetchBolt implements IRichBolt {
 //	    		WorkerServer.crawler.setWorking(false);
 				checkBatchWrite();
 	    		return;
-	    	} else if (crawlerInstance.queue.getDomainQueue(currentUrlInfo.getDomain()) != null) {
-	    		DomainQueue dq = crawlerInstance.queue.getDomainQueue(currentUrlInfo.getDomain());
+	    	} else if (crawlerInstance.queue.getDomainManager(currentUrlInfo.getDomain()) != null) {
+	    		DomainManager dq = crawlerInstance.queue.getDomainManager(currentUrlInfo.getDomain());
 	    		
 	    		// if domain is the same domain, make sure the redirect url is allowed
 	    		if (dq.checkDisallowed(currentUrl)) {
@@ -242,7 +234,7 @@ public class DocumentFetchBolt implements IRichBolt {
 			}
 
 		    documentBatch.add(new Document(currentUrlNormalized, content.replaceAll("\u0000", ""), 
-		    		urlConnection.getHeaderField("Content-Type")));		    
+		    		urlConnection.getHeaderField("Content-Type")));			    
         } catch (IOException e) {
 //        	WorkerServer.crawler.setWorking(false);
 			e.printStackTrace();
@@ -260,23 +252,22 @@ public class DocumentFetchBolt implements IRichBolt {
 	private void batchWriteDocuments(boolean send) {		
 		List<Document> documentBatchCopy = new ArrayList<Document>(documentBatch);
 		
-		if (!terminated)
-			executor.execute(new Runnable() {
-				@Override
-				public void run() {
-					try {
-						List<Integer> documentIds = WorkerServer.workerStorage.batchWriteDocuments(documentBatchCopy);
-				    	if (send) {
-					    	for (int i = 0; i < documentIds.size(); i++) {
-					    		Document doc = documentBatchCopy.get(i);
-								collector.emit(new Values<Object>(doc.getUrl(), doc.getContent(), doc.getType()));
-					    	}
+		executor.execute(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					List<Integer> documentIds = WorkerServer.workerStorage.batchWriteDocuments(documentBatchCopy);
+			    	if (!terminated && send) {
+				    	for (int i = 0; i < documentIds.size(); i++) {
+				    		Document doc = documentBatchCopy.get(i);
+							collector.emit(new Values<Object>(doc.getUrl(), doc.getContent(), doc.getType()));
 				    	}
-					} catch (SQLException e) {
-						e.printStackTrace();
-					}
+			    	}
+				} catch (SQLException e) {
+					e.printStackTrace();
 				}
-			});
+			}
+		});
     		
 	    documentBatch = new ArrayList<Document>();
 	}

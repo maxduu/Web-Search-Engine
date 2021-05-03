@@ -113,7 +113,7 @@ public class LinkExtractorBolt implements IRichBolt {
 			}
 	    }
 	    
-	    if (linkBatch.size() > BATCH_SIZE) {
+	    if (linkBatch.size() >= BATCH_SIZE) {
 	    	batchWriteLinks();
 	    }
 	    
@@ -125,17 +125,16 @@ public class LinkExtractorBolt implements IRichBolt {
 		
 		List<Link> linkBatchCopy = new ArrayList<Link>(linkBatch);
 		
-		if (!terminated)
-			executor.execute(new Runnable() {
-				@Override
-				public void run() {
-					try {
-						WorkerServer.workerStorage.batchWriteLinks(linkBatchCopy);
-					} catch (SQLException e) {
-						e.printStackTrace();
-					}
+		executor.execute(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					WorkerServer.workerStorage.batchWriteLinks(linkBatchCopy);
+				} catch (SQLException e) {
+					e.printStackTrace();
 				}
-			});
+			}
+		});
     		
 	    linkBatch = new ArrayList<Link>();
 	}
