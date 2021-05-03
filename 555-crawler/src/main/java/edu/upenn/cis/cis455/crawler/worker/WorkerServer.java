@@ -86,6 +86,7 @@ public class WorkerServer {
 		get("/shutdown", (req, res) -> {
 			System.err.println("IN SHUTDOWN");
 			
+			crawler.queue.pauseQueue();
 			stop = true;
 			executor.shutdownNow();
 
@@ -108,7 +109,7 @@ public class WorkerServer {
 						workerStorage.close();
 					} catch (InterruptedException e) {
 						e.printStackTrace();
-					}
+					} catch(Exception e) {}
 					System.exit(0);
 				}
 			}).start();

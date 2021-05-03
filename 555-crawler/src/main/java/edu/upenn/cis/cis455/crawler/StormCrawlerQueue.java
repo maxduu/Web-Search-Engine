@@ -8,6 +8,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.sleepycat.je.ThreadInterruptedException;
+
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 import edu.upenn.cis.cis455.crawler.worker.WorkerServer;
 import edu.upenn.cis.cis455.storage.Domain;
@@ -62,7 +64,7 @@ public class StormCrawlerQueue {
 	 * @param url
 	 */
 	public void put(String url) {
-		if (capacityReached) {
+		if (capacityReached || pause) {
 			return;
 		}
 
@@ -71,27 +73,34 @@ public class StormCrawlerQueue {
 		// get queue corresponding to URL domain
 		DomainQueue q = domainQueueMap.get(info.getDomain());
 		
-		// create if domain queue doesn't exist
-		if (q == null) {
-			Domain d = WorkerServer.workerStorage.addDomainObj(info.getDomain(), domainCount.getAndIncrement());
-			q = new DomainQueue(d);
-			domainQueues.put((int) d.id, q);
-			domainQueueMap.put(info.getDomain(), q);
-			
-			if (domainQueues.size() >= 1000000) {
-				capacityReached = true;
+		try {
+			// create if domain queue doesn't exist
+			if (q == null) {
+				Domain d = WorkerServer.workerStorage.addDomainObj(info.getDomain(), domainCount.getAndIncrement());
+				q = new DomainQueue(d);
+				domainQueues.put((int) d.id, q);
+				domainQueueMap.put(info.getDomain(), q);
+				
+				if (domainQueues.size() >= 1000000) {
+					capacityReached = true;
+				}
 			}
-		}
-		
-		boolean putSuccess = q.put(url);
 			
-		// only increase size if the url is allowed by robots.txt
-		if (putSuccess) {
-			size.incrementAndGet();
-		}		
+			boolean putSuccess = q.put(url);
+				
+			// only increase size if the url is allowed by robots.txt
+			if (putSuccess) {
+				size.incrementAndGet();
+			}
+		} catch (ThreadInterruptedException e) {
+		}
 	}
 	
 	public String take() {
+		if (pause) {
+			return null;
+		}
+		
 		int startIndex = currIndex.get();
 
 		while (true) {
@@ -103,15 +112,19 @@ public class StormCrawlerQueue {
 			// wrap around if index gets too large
 			currIndex.set(currIndex.intValue() % domainCount.intValue());
 
-			// check if the domain queue is in a crawler delay
-			if (domainQueues.containsKey(currIndex.intValue()) && domainQueues.get(currIndex.intValue()).getDelayRemaining() <= 0) {
-//				WorkerServer.crawler.setWorking(true);
-				String url = domainQueues.get(currIndex.intValue()).take();
-				if (url != null) {
-					size.decrementAndGet();
-					currIndex.incrementAndGet();
-					return url;
+			try {
+				// check if the domain queue is in a crawler delay
+				if (domainQueues.containsKey(currIndex.intValue()) && domainQueues.get(currIndex.intValue()).getDelayRemaining() <= 0) {
+	//				WorkerServer.crawler.setWorking(true);
+					String url = domainQueues.get(currIndex.intValue()).take();
+					if (url != null) {
+						System.out.println(currIndex.get());
+						size.decrementAndGet();
+						currIndex.incrementAndGet();
+						return url;
+					}
 				}
+			} catch (ThreadInterruptedException e) {
 			}
 			
 			currIndex.incrementAndGet();

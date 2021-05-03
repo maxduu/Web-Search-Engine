@@ -52,6 +52,8 @@ public class DocumentFetchBolt implements IRichBolt {
 	
 	public static final int BATCH_SIZE = 10;
 	
+	boolean terminated = false;
+	
 	ExecutorService executor = Executors.newFixedThreadPool(4);
 	Fields schema = new Fields("url", "document", "type");
     String executorId = UUID.randomUUID().toString();
@@ -76,6 +78,7 @@ public class DocumentFetchBolt implements IRichBolt {
 			batchWriteDocuments(false);    	
 		}
 		executor.shutdown();
+		terminated = true;
 	}
 	
 	private void checkBatchWrite() {
@@ -90,7 +93,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	public void execute(Tuple input) {
         String url = input.getStringByField("url");
         log.debug(getExecutorId() + " received " + url);
-//        System.err.println(getExecutorId() + " received " + url);
+        System.err.println(getExecutorId() + " received " + url);
         
         try {
 	        URL urlObj = new URL(url);
@@ -254,26 +257,26 @@ public class DocumentFetchBolt implements IRichBolt {
         checkBatchWrite();
 	}
 	
-	private void batchWriteDocuments(boolean send) {
-		
+	private void batchWriteDocuments(boolean send) {		
 		List<Document> documentBatchCopy = new ArrayList<Document>(documentBatch);
 		
-		executor.execute(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					List<Integer> documentIds = WorkerServer.workerStorage.batchWriteDocuments(documentBatchCopy);
-			    	if (send) {
-				    	for (int i = 0; i < documentIds.size(); i++) {
-				    		Document doc = documentBatchCopy.get(i);
-							collector.emit(new Values<Object>(doc.getUrl(), doc.getContent(), doc.getType()));
+		if (!terminated)
+			executor.execute(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						List<Integer> documentIds = WorkerServer.workerStorage.batchWriteDocuments(documentBatchCopy);
+				    	if (send) {
+					    	for (int i = 0; i < documentIds.size(); i++) {
+					    		Document doc = documentBatchCopy.get(i);
+								collector.emit(new Values<Object>(doc.getUrl(), doc.getContent(), doc.getType()));
+					    	}
 				    	}
-			    	}
-				} catch (SQLException e) {
-					e.printStackTrace();
+					} catch (SQLException e) {
+						e.printStackTrace();
+					}
 				}
-			}
-		});
+			});
     		
 	    documentBatch = new ArrayList<Document>();
 	}

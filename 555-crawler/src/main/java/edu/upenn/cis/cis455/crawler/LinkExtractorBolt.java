@@ -36,6 +36,8 @@ import edu.upenn.cis.cis455.storage.Link;
  */
 public class LinkExtractorBolt implements IRichBolt {
 	public static final int BATCH_SIZE = 200;
+	
+	boolean terminated = false;
 
 	ExecutorService executor = Executors.newFixedThreadPool(4);
 
@@ -61,11 +63,11 @@ public class LinkExtractorBolt implements IRichBolt {
 
 	@Override
 	public void cleanup() {
-		// TODO Auto-generated method stub
 		if (linkBatch.size() > 0) {
 			batchWriteLinks();    	
 		}
 		executor.shutdown();
+		terminated = true;
 	}
 
 	@Override
@@ -101,7 +103,7 @@ public class LinkExtractorBolt implements IRichBolt {
 			linkBatch.add(new Link(currentUrl, normalizedUrl));
 			
 			try {
-				if (WorkerRouter.sendUrlToWorker(nextUrl, WorkerServer.config.get("workers")).getResponseCode() !=
+				if (!terminated && WorkerRouter.sendUrlToWorker(nextUrl, WorkerServer.config.get("workers")).getResponseCode() !=
 						HttpURLConnection.HTTP_OK) {
 //					WorkerServer.crawler.setWorking(false);
 					throw new RuntimeException("Worker add start URL request failed");
@@ -123,16 +125,17 @@ public class LinkExtractorBolt implements IRichBolt {
 		
 		List<Link> linkBatchCopy = new ArrayList<Link>(linkBatch);
 		
-		executor.execute(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					WorkerServer.workerStorage.batchWriteLinks(linkBatchCopy);
-				} catch (SQLException e) {
-					e.printStackTrace();
+		if (!terminated)
+			executor.execute(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						WorkerServer.workerStorage.batchWriteLinks(linkBatchCopy);
+					} catch (SQLException e) {
+						e.printStackTrace();
+					}
 				}
-			}
-		});
+			});
     		
 	    linkBatch = new ArrayList<Link>();
 	}
