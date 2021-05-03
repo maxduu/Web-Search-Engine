@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface WorkerStorageInterface {
 
-	public List<Integer> batchWriteDocuments(List<Document> documents) throws SQLException;
+	public void batchWriteDocuments(List<Document> documents) throws SQLException;
 	
 	public void batchWriteLinks(List<Link> links) throws SQLException;
 	

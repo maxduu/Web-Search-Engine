@@ -57,11 +57,11 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
 	}
 
 	@Override
-	public List<Integer> batchWriteDocuments(List<Document> documents) throws SQLException {
+	public void batchWriteDocuments(List<Document> documents) throws SQLException {
 		System.err.println("BATCH WRITING DOCUMENTS");
 		List<Integer> documentIds = new ArrayList<Integer>();
 		if (documents.size() == 0) {
-			return documentIds;
+			return;
 		}
 		
 		String urlInsertQuery = "INSERT INTO urls (url) VALUES (?) "
@@ -101,12 +101,10 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
         con.commit();
 
         con.close();		
-		return documentIds;
 	}
 
 	@Override
 	public void batchWriteLinks(List<Link> links) throws SQLException {
-		System.err.println("BATCH WRITING LINKS");
 		if (links.size() == 0) {
 			return;
 		}

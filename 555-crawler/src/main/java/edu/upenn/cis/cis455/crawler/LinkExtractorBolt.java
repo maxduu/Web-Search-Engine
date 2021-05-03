@@ -35,7 +35,7 @@ import edu.upenn.cis.cis455.storage.Link;
  *
  */
 public class LinkExtractorBolt implements IRichBolt {
-	public static final int BATCH_SIZE = 200;
+	public static final int BATCH_SIZE = 400;
 	
 	boolean terminated = false;
 
