@@ -223,6 +223,12 @@ public class DocumentFetchBolt implements IRichBolt {
 			urlConnection.setConnectTimeout(5000);
 			urlConnection.setReadTimeout(5000);
 			
+			if (urlConnection.getResponseCode() >= 400) {
+				System.err.println(currentUrlNormalized + " bad response code " + urlConnection.getResponseCode());
+				checkBatchWrite();
+				return;
+			}
+			
 			// download the content
 			in = new BufferedInputStream(urlConnection.getInputStream());
 //	    	log.info(url + ": downloading");
@@ -239,7 +245,8 @@ public class DocumentFetchBolt implements IRichBolt {
 		    	return;
 			}
 
-		    documentBatch.add(new Document(currentUrlNormalized, content, urlConnection.getHeaderField("Content-Type")));		    
+		    documentBatch.add(new Document(currentUrlNormalized, content.replaceAll("\u0000", ""), 
+		    		urlConnection.getHeaderField("Content-Type")));		    
         } catch (IOException e) {
 //        	WorkerServer.crawler.setWorking(false);
 			e.printStackTrace();

@@ -154,6 +154,10 @@ public class MasterServer {
 			return "<h1>Shutdown</h1>";
 		});
 		
+		get("/alive", (req, res) -> {
+			return "Alive";
+		});
+		
 		post("/put-content-hash", (req, res) -> {
             String hashedContent = req.body();		
             boolean newHash = masterStorage.addDocumentHash(hashedContent);
