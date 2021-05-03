@@ -95,12 +95,6 @@ public class WorkerServer {
 				@Override
 				public void run() {
 					try {
-						while (crawler != null && crawler.isWorking())
-							try {
-								Thread.sleep(10);
-							} catch (InterruptedException e) {
-								e.printStackTrace();
-							}
 						if (crawler != null)
 							crawler.shutdown();
 						Thread.sleep(3000);

@@ -107,13 +107,11 @@ public class DocumentFetchBolt implements IRichBolt {
 				contentType = urlConnection.getHeaderField("Content-Type");
 				if (!contentType.startsWith("text/html") && !contentType.startsWith("text/xml") && 
 						!contentType.startsWith("application/xml") && !contentType.contains("+xml")) {
-//					WorkerServer.crawler.setWorking(false);
-					System.err.println(url + " Content type mismatch: " + urlConnection.getHeaderField("Content-Type"));
+					//System.err.println(url + " Content type mismatch: " + urlConnection.getHeaderField("Content-Type"));
 					return;
 				}
 			} else {
-//				WorkerServer.crawler.setWorking(false);
-				System.err.println(url + " Content type null");
+				//System.err.println(url + " Content type null");
 				return;
 			}
 			
@@ -121,7 +119,6 @@ public class DocumentFetchBolt implements IRichBolt {
 			if (urlConnection.getHeaderField("Content-Length") != null) {
 				int contentLength = Integer.parseInt(urlConnection.getHeaderField("Content-Length"));
 				if (contentLength > 1000000 * crawlerInstance.maxDocSize) {
-//					WorkerServer.crawler.setWorking(false);
 					return;
 				}
 			}
@@ -136,14 +133,12 @@ public class DocumentFetchBolt implements IRichBolt {
 	    	// correct domain
 	    	if (!urlInfo.getDomain().equals(currentUrlInfo.getDomain())) {
 	    		WorkerRouter.sendUrlToWorker(currentUrlNormalized, WorkerServer.config.get("workers"));
-//	    		WorkerServer.crawler.setWorking(false);
 	    		return;
 	    	} else if (crawlerInstance.queue.getDomainManager(currentUrlInfo.getDomain()) != null) {
 	    		DomainManager dq = crawlerInstance.queue.getDomainManager(currentUrlInfo.getDomain());
 	    		
 	    		// if domain is the same domain, make sure the redirect url is allowed
 	    		if (dq.checkDisallowed(currentUrl)) {
-//	    			WorkerServer.crawler.setWorking(false);
 	    			return;
 	    		}
 	    	}
@@ -174,8 +169,6 @@ public class DocumentFetchBolt implements IRichBolt {
 							if (resCode == 200) {
 								collector.emit(new Values<Object>(currentUrlNormalized, oldDoc.getContent(), 
 										urlConnection.getHeaderField("Content-Type")));
-							} else {
-	//							WorkerServer.crawler.setWorking(false);
 							}
 						}
 						return;
@@ -197,13 +190,13 @@ public class DocumentFetchBolt implements IRichBolt {
 			urlConnection.setReadTimeout(5000);
 			
 			if (urlConnection.getResponseCode() >= 400) {
-				System.err.println(currentUrlNormalized + " bad response code " + urlConnection.getResponseCode());
+				//System.err.println(currentUrlNormalized + " bad response code " + urlConnection.getResponseCode());
 				return;
 			}
 			
 			// download the content
 			in = new BufferedInputStream(urlConnection.getInputStream());
-//	    	log.info(url + ": downloading");
+	    	//log.info(url + ": downloading");
 		    String content = new String(in.readAllBytes());
 		    		    		    
 		    // add content to the database - this will check if the document contents 
@@ -212,7 +205,7 @@ public class DocumentFetchBolt implements IRichBolt {
 					.getResponseCode();
 		    
 			if (resCode != HttpURLConnection.HTTP_OK) {
-				System.err.println(currentUrlNormalized + " Content seen " + resCode);
+				//System.err.println(currentUrlNormalized + " Content seen " + resCode);
 		    	return;
 			}
 
@@ -225,13 +218,10 @@ public class DocumentFetchBolt implements IRichBolt {
 		    	batchWriteDocuments();
 		    }
         } catch (IOException e) {
-//        	WorkerServer.crawler.setWorking(false);
 			e.printStackTrace();
 		} catch (ParseException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}

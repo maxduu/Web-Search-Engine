@@ -78,8 +78,6 @@ public class LinkExtractorBolt implements IRichBolt {
 
 		// ignore non html documents (xml docs)
 		if (!type.startsWith("text/html")) {
-//			WorkerServer.crawler.setWorking(false);
-			System.out.println("IGNORE NON-XML DOCS");
 			return;
 		}
 		
@@ -105,7 +103,6 @@ public class LinkExtractorBolt implements IRichBolt {
 			try {
 				if (!terminated && WorkerRouter.sendUrlToWorker(nextUrl, WorkerServer.config.get("workers")).getResponseCode() !=
 						HttpURLConnection.HTTP_OK) {
-//					WorkerServer.crawler.setWorking(false);
 					throw new RuntimeException("Worker add start URL request failed");
 				}
 			} catch (IOException e) {
@@ -116,9 +113,6 @@ public class LinkExtractorBolt implements IRichBolt {
 	    if (linkBatch.size() >= BATCH_SIZE) {
 	    	batchWriteLinks();
 	    }
-	    
-	    // link extract task finished
-//	    WorkerServer.crawler.setWorking(false);
 	}
 	
 	private void batchWriteLinks() {
@@ -141,13 +135,11 @@ public class LinkExtractorBolt implements IRichBolt {
 
 	@Override
 	public void prepare(Map<String, String> stormConf, TopologyContext context, OutputCollector collector) {
-		// TODO Auto-generated method stub
 		this.linkBatch = new ArrayList<Link>();
 	}
 
 	@Override
 	public void setRouter(IStreamRouter router) {
-		// TODO Auto-generated method stub
 	}
 
 	@Override
