@@ -84,7 +84,7 @@ public class MasterServer {
 	}
 	
 	public static void main(String[] args) {
-        if (args.length < 5) {
+        if (args.length < 4) {
             System.out.println("Usage: Master Server {start URL} {RDS environment path} {max doc size in MB} {number of files to index} {port}");
             System.exit(1);
         }
@@ -96,7 +96,6 @@ public class MasterServer {
 
         port(myPort);
         
-        // TODO: THIS IS TEMP UNTIL RDS IS SET UP
         File directory = new File(storagePath);
         if (! directory.exists()){
             directory.mkdirs();

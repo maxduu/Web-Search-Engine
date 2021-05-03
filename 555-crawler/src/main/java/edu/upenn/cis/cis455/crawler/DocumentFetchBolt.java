@@ -81,7 +81,7 @@ public class DocumentFetchBolt implements IRichBolt {
 	private void checkBatchWrite() {
 //	    System.out.println("DOCUMENT BATCH SIZE: " + documentBatch.size() + ", " + documentBatch);
 //	    System.out.println("QUEUE SIZE: " + crawlerInstance.queue.size);
-	    if (documentBatch.size() >= BATCH_SIZE || crawlerInstance.queue.size == 0) {
+	    if (documentBatch.size() >= BATCH_SIZE || crawlerInstance.queue.size.get() == 0) {
 	    	batchWriteDocuments(true);
 	    }
 	}

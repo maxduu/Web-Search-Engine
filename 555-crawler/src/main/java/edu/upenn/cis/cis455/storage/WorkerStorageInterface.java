@@ -3,6 +3,7 @@ package edu.upenn.cis.cis455.storage;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 
 public interface WorkerStorageInterface {
@@ -18,5 +19,15 @@ public interface WorkerStorageInterface {
 	public URLSeenTime getUrlSeen(String url);
 	
 	public void close();
+	
+	public Map<Long, Domain> getAllDomainObj();
+	
+	public Domain addDomainObj(String domain, int id);
+	
+	public boolean addQueueUrl(String url, long domainId);
+	
+	public String takeQueueUrl(long domainId);
+	
+	public long getQueueSize();
 
 }

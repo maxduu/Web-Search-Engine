@@ -56,10 +56,6 @@ public class WorkerRouter {
 	public static HttpURLConnection sendDocumentHashToMaster(String masterAddress, String documentContents) throws IOException {
 		URL urlObj = new URL(masterAddress + "/put-content-hash");
 		
-		if (documentContents.length() == 0) {
-			System.out.println("0 LENGTH DOC");
-		}
-		
 		MessageDigest digest;
 		String hashedContent = "";
 

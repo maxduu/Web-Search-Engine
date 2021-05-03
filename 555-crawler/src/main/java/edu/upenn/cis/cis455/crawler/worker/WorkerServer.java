@@ -104,8 +104,8 @@ public class WorkerServer {
 							}
 						if (crawler != null)
 							crawler.shutdown();
-						workerStorage.close();
 						Thread.sleep(3000);
+						workerStorage.close();
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}

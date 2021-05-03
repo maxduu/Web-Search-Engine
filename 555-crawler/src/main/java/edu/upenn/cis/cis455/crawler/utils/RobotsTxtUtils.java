@@ -20,14 +20,14 @@ import javax.net.ssl.HttpsURLConnection;
 public class RobotsTxtUtils {	
 	
 	String robot;
-	String domain;
+	String content;
 	Set<String> allowed;
 	Set<String> disallowed;
 	double delay;
 	
-	public RobotsTxtUtils(String robot, String domain) {
+	public RobotsTxtUtils(String robot, String content) {
 		this.robot = robot;
-		this.domain = domain;
+		this.content = content;
 		this.allowed = new HashSet<String>();
 		this.disallowed = new HashSet<String>();
 		this.delay = 0;
@@ -93,40 +93,6 @@ public class RobotsTxtUtils {
 	 * Helper function to parse the robots.txt file
 	 */
 	private void parseRobotsTxt() {
-		
-		// construct url and connection to get the content
-		URL urlObj;
-		try {
-			urlObj = new URL(domain + "/robots.txt");
-		} catch (MalformedURLException e) {
-			e.printStackTrace();
-			return;
-		}
-		
-    	HttpURLConnection urlConnection;
-
-    	try {
-			if (domain.startsWith("https")) {
-				urlConnection = (HttpsURLConnection) urlObj.openConnection();
-			} else {
-				urlConnection = (HttpURLConnection) urlObj.openConnection();
-			}
-    	} catch(IOException e) {
-    		e.printStackTrace();
-    		return;
-    	}
-    	
-		urlConnection.setRequestProperty("User-Agent", "cis455crawler");
-		
-		String content = "";
-		try {
-			BufferedInputStream in = new BufferedInputStream(urlConnection.getInputStream());
-		    content = new String(in.readAllBytes());
-		} catch (IOException e) {
-			// case when no robots.txt exists
-			return;
-		}
-
 		// split the robots.txt file by lines
     	String[] lineSplit = content.split("\n");
     	String currentUserAgent = "";
