@@ -1,20 +1,43 @@
 --- Contains basic queries needed for iterative full PageRank, we will eventually create a python script ---
 --- Basic idea and flow of Python script here as well ---
 
---- Table: links(source, dest) ---
+--- Table: links(sourceID, destID) ---
 
 --- Finds number of outgoing links for each node ---
---- Note make this table a Materialized View (Nevermind MySQL doesn't have support for Mat Views) ---
+--- Note make this table a Materialized View ---
 --- Instead drop out_weights and recreate before every PageRank ---
 --- View table will be called out_weights ---
 --- Note that we must refresh the view before running PageRank ---
 
-DROP TABLE out_weights;
+CREATE MATERIALIZED VIEW cleaned_links_url AS
+  WITH no_self_loops AS (
+    SELECT links_url.source, links_url.dest
+    FROM links_url
+    WHERE links_url.source::text <> links_url.dest::text
+  ), sinks AS (
+    SELECT no_self_loops.dest AS sink
+    FROM no_self_loops
+    WHERE NOT (no_self_loops.dest::text IN ( 
+      SELECT DISTINCT no_self_loops_1.source
+      FROM no_self_loops no_self_loops_1)
+    )
+  ), back_edges AS (
+    SELECT n.dest AS source, n.source AS dest
+    FROM no_self_loops n
+    JOIN sinks s ON n.dest::text = s.sink::text
+  )
+  SELECT back_edges.source, back_edges.dest
+  FROM back_edges
+  UNION
+  SELECT no_self_loops.source, no_self_loops.dest
+  FROM no_self_loops;
 
-CREATE TABLE out_weights AS
-  SELECT source, 1 / COUNT(*) AS out_weight
-  FROM links
-  GROUP BY source;
+CREATE MATERIALIZED VIEW out_weights AS
+  SELECT cleaned_links_url.source, 1.0 / count(*)::numeric AS out_weight
+  FROM cleaned_links_url
+  GROUP BY cleaned_links_url.source;
+
+REFRESH MATERIALIZED VIEW out_weights;
 
 --- Assume in python script there is a variable called: prev_iter_ranks ---
 --- prev_iter_ranks (node, rank) ---
