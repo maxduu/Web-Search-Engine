@@ -48,7 +48,7 @@ public class WorkerServer {
 		if (!directory.exists()) {
 			directory.mkdirs();
 		}
-		workerStorage = new WorkerStorage();
+		workerStorage = new WorkerStorage(storageDirectory);
 
 		System.out.println("Worker node startup, on port " + myPort);
 
@@ -104,6 +104,7 @@ public class WorkerServer {
 							}
 						if (crawler != null)
 							crawler.shutdown();
+						workerStorage.close();
 						Thread.sleep(3000);
 					} catch (InterruptedException e) {
 						e.printStackTrace();

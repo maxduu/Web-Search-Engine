@@ -94,6 +94,10 @@ public class LinkExtractorBolt implements IRichBolt {
 			
 			String normalizedUrl = new URLInfo(nextUrl).toString();
 			
+			if (normalizedUrl.length() > 2048) {
+				continue;
+			}
+			
 			linkBatch.add(new Link(currentUrl, normalizedUrl));
 			
 			try {
