@@ -1,16 +1,46 @@
 package edu.upenn.cis.cis455.storage;
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import com.fasterxml.jackson.core.json.ReaderBasedJsonParser;
+import com.sleepycat.je.Environment;
+import com.sleepycat.je.EnvironmentConfig;
+import com.sleepycat.je.Transaction;
+import com.sleepycat.persist.EntityStore;
+import com.sleepycat.persist.PrimaryIndex;
+import com.sleepycat.persist.StoreConfig;
 
 public class WorkerStorage extends RDSStorage implements WorkerStorageInterface {
+
+	Environment env;
+
+	EntityStore urlSeenStore;
+	PrimaryIndex<String, URLSeenTime> dateByUrl;
+	
+	public WorkerStorage(String directory) {
+		// create the environment
+        EnvironmentConfig envConfig = new EnvironmentConfig();
+        envConfig.setAllowCreate(true);
+        envConfig.setTransactional(true);
+        
+        env = new Environment(new File(directory), envConfig);
+        
+        // create store and indexes
+        StoreConfig urlSeenStoreConfig = new StoreConfig();
+        urlSeenStoreConfig.setAllowCreate(true);
+        urlSeenStoreConfig.setTransactional(true);
+        urlSeenStore = new EntityStore(env, "UrlSeenStore", urlSeenStoreConfig);
+        
+        dateByUrl = urlSeenStore.getPrimaryIndex(String.class, URLSeenTime.class);
+	}
 
 	@Override
 	public List<Integer> batchWriteDocuments(List<Document> documents) throws SQLException {
@@ -96,8 +126,6 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
 		PreparedStatement stmt = con.prepareStatement(query);
 		stmt.setString(1, url);
         ResultSet rs = stmt.executeQuery();
-        
-        System.out.println("IN GET DOC");
 
         if (!rs.next()) {
         	return null;
@@ -109,6 +137,30 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
         
         con.close();
         return new Document(id, docUrl, content, contentType);
+	}
+
+	@Override
+	public void addUrlSeen(String url, Date lastCrawled) {
+		Transaction txn = env.beginTransaction(null, null);
+
+		URLSeenTime obj = new URLSeenTime();
+		obj.url = url;
+		obj.lastCrawled = lastCrawled;
+		
+		dateByUrl.put(obj);
+		
+		txn.commit();
+	}
+
+	@Override
+	public URLSeenTime getUrlSeen(String url) {
+		return dateByUrl.get(url);
+	}
+
+	@Override
+	public void close() {
+		urlSeenStore.close();
+		env.close();
 	}
 
 }

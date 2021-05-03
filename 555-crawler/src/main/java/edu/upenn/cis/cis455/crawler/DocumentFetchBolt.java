@@ -32,6 +32,7 @@ import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 import edu.upenn.cis.cis455.crawler.utils.WorkerRouter;
 import edu.upenn.cis.cis455.crawler.worker.WorkerServer;
 import edu.upenn.cis.cis455.storage.Document;
+import edu.upenn.cis.cis455.storage.URLSeenTime;
 import edu.upenn.cis.stormlite.OutputFieldsDeclarer;
 import edu.upenn.cis.stormlite.TopologyContext;
 import edu.upenn.cis.stormlite.bolt.IRichBolt;
@@ -56,8 +57,6 @@ public class DocumentFetchBolt implements IRichBolt {
     String executorId = UUID.randomUUID().toString();
     private OutputCollector collector;
     Crawler crawlerInstance = WorkerServer.crawler;
-    
-    Map<String, Date> urlSeen;
     
     List<Document> documentBatch;
 
@@ -141,15 +140,7 @@ public class DocumentFetchBolt implements IRichBolt {
 					checkBatchWrite();
 					return;
 				}
-			} 
-
-//			else if (urlConnection.getHeaderField("Transfer-Encoding") == null || 
-//					!urlConnection.getHeaderField("Transfer-Encoding").equals("chunked")) {
-//				System.err.println("Missing Content-Length");
-//				System.err.println(urlConnection.getHeaderFields());
-////				WorkerServer.crawler.setWorking(false);
-//				return;
-//			}
+			}
 			
 			// get final url after redirects
 	    	currentUrl = urlConnection.getURL().toString();
@@ -176,8 +167,10 @@ public class DocumentFetchBolt implements IRichBolt {
 	    	}
 			
 	    	// check if the url has been stored before and see if it has been modified since
-			if (urlSeen.containsKey(currentUrlNormalized)) {
-				Date lastCrawled = urlSeen.get(currentUrlNormalized);
+	    	URLSeenTime urlSeen = WorkerServer.workerStorage.getUrlSeen(currentUrlNormalized);
+	    	
+			if (urlSeen != null) {
+				Date lastCrawled = urlSeen.lastCrawled;
 				
 				if (crawlerInstance.startDate.before(lastCrawled)) {
 					checkBatchWrite();
@@ -210,7 +203,7 @@ public class DocumentFetchBolt implements IRichBolt {
 				}
 			}
 			
-			urlSeen.put(currentUrlNormalized, new Date());
+			WorkerServer.workerStorage.addUrlSeen(currentUrlNormalized, new Date());
 	    				
 			// open new url connection to fetch the content
 			if (currentUrlInfo.isSecure()) {
@@ -240,7 +233,7 @@ public class DocumentFetchBolt implements IRichBolt {
 					.getResponseCode();
 		    
 			if (resCode != HttpURLConnection.HTTP_OK) {
-				System.err.println(url + " Content seen");
+				System.err.println(currentUrlNormalized + " Content seen " + resCode);
 				checkBatchWrite();
 		    	return;
 			}
@@ -289,7 +282,6 @@ public class DocumentFetchBolt implements IRichBolt {
 	public void prepare(Map<String, String> stormConf, TopologyContext context, OutputCollector collector) {
         this.collector = collector;
         this.documentBatch = new ArrayList<Document>();
-        this.urlSeen = new HashMap<String, Date>();
 	}
 
 	@Override
