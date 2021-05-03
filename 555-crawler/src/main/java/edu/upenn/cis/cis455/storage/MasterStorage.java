@@ -4,6 +4,10 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
@@ -22,16 +26,10 @@ import com.sleepycat.persist.StoreConfig;
 
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 
-public class MasterStorage implements StorageInterface {
+public class MasterStorage extends RDSStorage implements MasterStorageInterface {
 	
 	Environment env;
-	
-	EntityStore documentStore;
 	EntityStore contentSeenStore;
-
-	PrimaryIndex<Integer, Document> documentById;
-	SecondaryIndex<String, Integer, Document> documentByUrl;
-
 	PrimaryIndex<String, DocumentHash> contentSeenByHash;
 	
 	/**
@@ -47,15 +45,6 @@ public class MasterStorage implements StorageInterface {
         
         env = new Environment(new File(directory), envConfig);        
         
-        // create the document store and indexes
-        StoreConfig documentStoreConfig = new StoreConfig();
-        documentStoreConfig.setAllowCreate(true);
-        documentStoreConfig.setTransactional(true);
-        documentStore = new EntityStore(env, "DocumentStore", documentStoreConfig);
-        
-        documentById = documentStore.getPrimaryIndex(Integer.class, Document.class);
-        documentByUrl = documentStore.getSecondaryIndex(documentById, String.class, "url");
-        
         // create the content seen store and indexes
         StoreConfig contentSeenStoreConfig = new StoreConfig();
         contentSeenStoreConfig.setAllowCreate(true);
@@ -65,112 +54,45 @@ public class MasterStorage implements StorageInterface {
         contentSeenByHash = contentSeenStore.getPrimaryIndex(String.class, DocumentHash.class);
 	}
 
+	// TODO: read from RDS - should only be run one time!!
 	@Override
-	public int getCorpusSize() {
-		return (int) documentById.count();
+	public int getCorpusSize() throws SQLException {
+		Connection con = getDBConnection();
+		
+		Statement stmt = con.createStatement();
+        ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM crawler_docs");
+        rs.next();
+        int corpusSize = rs.getInt(1);
+        
+        con.close();
+        return corpusSize;
+	}
+	
+	
+
+	@Override
+	public void close() {
+		// first need to clear the content seen hash store
+        contentSeenStore.truncateClass(DocumentHash.class);
+		contentSeenStore.close();
+		env.close();
 	}
 
 	@Override
-	public AddDocumentResponse addDocument(String url, String documentContents, String type, boolean modified) {
-		// create a hash of the contents
-		MessageDigest digest;
-		String hashedContent = "";
-		String normalizedUrl = new URLInfo(url).toString();
-
-		try {
-			digest = MessageDigest.getInstance("MD5");
-			byte[] encodedhash = digest.digest(documentContents.getBytes(StandardCharsets.UTF_8));
-			hashedContent = new String(encodedhash, StandardCharsets.UTF_8);
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		}
-		
+	public boolean addDocumentHash(String hashedContent) {
 		DocumentHash hashObj = contentSeenByHash.get(hashedContent);
 		
 		// if the hash has been seen, then we don't need to store again
 		if (hashObj != null) {
-			return new AddDocumentResponse(hashObj.documentId, true);
+			return false;
 		}
 		
-		Document oldDoc = getDocumentObjectByUrl(normalizedUrl);
-		
-		int docId = -1;
-		if (oldDoc != null) {
-			docId = oldDoc.id;
-		}
-				
-		// start the database transaction
 		Transaction txn = env.beginTransaction(null, null);
-		
-		// if the document was modified or we are getting a new document, we store/update
-		if (modified) {
-			Document d = new Document();
-						
-			// if a document with the same url exists, we are updating, otherwise we will create a new entry
-			if (oldDoc != null) {
-				d.id = oldDoc.id;
-			}
-
-			d.url = normalizedUrl;
-			d.content = documentContents;
-			d.type = type;
-			d.lastCrawled = new Date();
-			documentById.put(d);
-			
-			docId = d.id;
-		}
-		
-		// store the hash in all cases
 		DocumentHash h = new DocumentHash();
 		h.hash = hashedContent;	
-		h.documentId = docId;
 		contentSeenByHash.put(h);
-				
 		txn.commit();
 		
-		return new AddDocumentResponse(docId, false);
-	}
-	
-	@Override
-	public Document getDocumentObjectByUrl(String url) {
-		String normalizedUrl = new URLInfo(url).toString();
-		return documentByUrl.get(normalizedUrl);
-	}
-	
-	@Override
-	public Document getDocumentObjectById(int id) {
-		return documentById.get(id);
-	}
-	
-	@Override
-	public boolean urlSeen(String url) {
-		String normalizedUrl = new URLInfo(url).toString();
-		return documentByUrl.contains(normalizedUrl);
-	}
-
-	@Override
-	public String getDocument(String url) {
-		if (getDocumentObjectByUrl(url) == null) {
-			return null;
-		}
-		
-		return getDocumentObjectByUrl(url).content;
-	}
-	
-	@Override
-	public void clearEntries() {
-        contentSeenStore.truncateClass(DocumentHash.class);
-        documentStore.truncateClass(Document.class);
-	}
-
-	@Override
-	public void close() {
-		
-		// first need to clear the content seen hash store
-        contentSeenStore.truncateClass(DocumentHash.class);
-        
-		documentStore.close();
-		contentSeenStore.close();
-		env.close();
+		return true;
 	}
 }

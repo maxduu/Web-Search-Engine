@@ -4,9 +4,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 import edu.upenn.cis.cis455.crawler.worker.WorkerServer;
+import edu.upenn.cis.cis455.storage.Domain;
 
 /**
  * Queue that the storm crawler uses
@@ -15,25 +19,41 @@ import edu.upenn.cis.cis455.crawler.worker.WorkerServer;
  */
 public class StormCrawlerQueue {
 	
-	int size = 0;
-	int currIndex = 0;
-	List<DomainQueue> domainQueues = new ArrayList<DomainQueue>();
-	Map<String, DomainQueue> domainQueueMap = new HashMap<String, DomainQueue>();
+	AtomicLong size = new AtomicLong();
+	AtomicInteger currIndex = new AtomicInteger();
+	AtomicInteger domainCount = new AtomicInteger();
+	Map<Integer, DomainQueue> domainQueues = new ConcurrentHashMap<Integer, DomainQueue>();
+	Map<String, DomainQueue> domainQueueMap = new ConcurrentHashMap<String, DomainQueue>();
 	boolean pause = false;
+	public boolean capacityReached = false;
+	
+	public StormCrawlerQueue() {
+		size.set(WorkerServer.workerStorage.getQueueSize());
+		Map<Long, Domain> dbDomains = WorkerServer.workerStorage.getAllDomainObj();
+		
+		for (Long id : dbDomains.keySet()) {
+			System.out.println(id);
+			DomainQueue q = new DomainQueue(dbDomains.get(id));
+			domainQueues.put(id.intValue(), q);
+			domainQueueMap.put(dbDomains.get(id).domain, q);
+		}
+		
+		domainCount.set(dbDomains.size());
+	}
 	
 	/**
 	 * Get the domain specific queue based on a given domain
 	 * @param domain
 	 * @return Queue for given domain
 	 */
-	synchronized DomainQueue getDomainQueue(String domain) {
+	public DomainQueue getDomainQueue(String domain) {
 		return domainQueueMap.get(domain);
 	}
 	
 	/**
 	 * Used to tell the queue to stop returning URLs on take
 	 */
-	void pauseQueue() {
+	public void pauseQueue() {
 		pause = true;
 	}
 	
@@ -41,7 +61,11 @@ public class StormCrawlerQueue {
 	 * Put a URL in the crawler queue
 	 * @param url
 	 */
-	public synchronized void put(String url) {
+	public void put(String url) {
+		if (capacityReached) {
+			return;
+		}
+
 		URLInfo info = new URLInfo(url);
 		
 		// get queue corresponding to URL domain
@@ -49,49 +73,51 @@ public class StormCrawlerQueue {
 		
 		// create if domain queue doesn't exist
 		if (q == null) {
-			q = new DomainQueue(info.getDomain());
+			Domain d = WorkerServer.workerStorage.addDomainObj(info.getDomain(), domainCount.getAndIncrement());
+			q = new DomainQueue(d);
+			domainQueues.put((int) d.id, q);
 			domainQueueMap.put(info.getDomain(), q);
-			domainQueues.add(q);
-		}
-		
-		if (!q.contains(url)) {
-			boolean putSuccess = q.put(url);
 			
-			// only increase size if the url is allowed by robots.txt
-			if (putSuccess) {
-				size++;
+			if (domainQueues.size() >= 1000000) {
+				capacityReached = true;
 			}
 		}
+		
+		boolean putSuccess = q.put(url);
+			
+		// only increase size if the url is allowed by robots.txt
+		if (putSuccess) {
+			size.incrementAndGet();
+		}		
 	}
 	
-	synchronized String take() throws InterruptedException {
-		int startIndex = currIndex;
+	public String take() {
+		int startIndex = currIndex.get();
 
 		while (true) {
 			// if queue is empty, wait
-			if (size == 0 || pause) {
+			if (size.get() == 0) {
 				return null;
 			}
 			
 			// wrap around if index gets too large
-			currIndex = currIndex % domainQueues.size();
-			
-			if (!domainQueues.get(currIndex).isEmpty()) {
-				
-				// check if the domain queue is in a crawler delay
-				if (domainQueues.get(currIndex).getDelayRemaining() <= 0) {
-					WorkerServer.crawler.setWorking(true);
-					size--;
-					String url = domainQueues.get(currIndex).take();
-					currIndex++;
+			currIndex.set(currIndex.intValue() % domainCount.intValue());
+
+			// check if the domain queue is in a crawler delay
+			if (domainQueues.containsKey(currIndex.intValue()) && domainQueues.get(currIndex.intValue()).getDelayRemaining() <= 0) {
+//				WorkerServer.crawler.setWorking(true);
+				String url = domainQueues.get(currIndex.intValue()).take();
+				if (url != null) {
+					size.decrementAndGet();
+					currIndex.incrementAndGet();
 					return url;
 				}
 			}
 			
-			currIndex++;
+			currIndex.incrementAndGet();
 			
 			// if we've gone to all indexes and not found anything, return null
-			if (currIndex == startIndex) {
+			if (currIndex.intValue() == startIndex) {
 				return null;
 			}
 		}

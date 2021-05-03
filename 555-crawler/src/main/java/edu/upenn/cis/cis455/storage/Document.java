@@ -8,35 +8,48 @@ import com.sleepycat.persist.model.Relationship;
 import com.sleepycat.persist.model.SecondaryKey;
 
 /**
- * Document class used in BerkeleyDB
+ * Document class
  * @author Kevin Chen
  *
  */
-@Entity
-public class Document {
-    @PrimaryKey(sequence="documentId")
-    public int id;
-    
-    @SecondaryKey(relate = Relationship.ONE_TO_ONE)
-    public String url; 
-    
-    public String content;
-    public Date lastCrawled;
-    public String type;
 
+public class Document {
+    String url;  
+    String content;
+    String type;
+    int id;
+
+	public Document(String url, String content, String type) {
+		this.url = url;
+		this.content = content;
+		this.type = type;
+	}
+	
+	public Document(int id, String url, String content, String type) {
+		this.id = id;
+		this.url = url;
+		this.content = content;
+		this.type = type;
+	}
+	
+	public int getId() {
+		return id;
+	}
+	
+	public String getUrl() {
+		return url;
+	}
+	
+	public String getContent() {
+		return content;
+	}
+	
+	public String getType() {
+		return type;
+	}
+	
+	@Override
 	public String toString() {
-        StringBuffer buffer = new StringBuffer("Document[");
-        buffer.append("id=")
-                .append(id)
-                .append(",url=")
-                .append(url)
-                .append(",content=")
-                .append(content)
-                .append(",lastCrawled=")
-                .append(lastCrawled)
-                .append(",type=")
-                .append(type)
-                .append("]");
-        return buffer.toString();
-    }
+		return url;
+	}
 }

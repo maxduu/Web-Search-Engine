@@ -4,13 +4,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import edu.upenn.cis.cis455.storage.StorageFactory;
-import edu.upenn.cis.cis455.storage.StorageInterface;
+import edu.upenn.cis.cis455.storage.MasterStorageInterface;
 import edu.upenn.cis.stormlite.Config;
 import edu.upenn.cis.stormlite.LocalCluster;
 import edu.upenn.cis.stormlite.Topology;
@@ -22,16 +23,20 @@ public class Crawler implements CrawlMaster {
 	private static final String QUEUE_SPOUT = "QUEUE_SPOUT";
     private static final String DOCUMENT_FETCH_BOLT = "DOCUMENT_FETCH_BOLT";
     private static final String LINK_EXTRACTOR_BOLT = "LINK_EXTRACTOR_BOLT";
+    
+    public Date startDate;
 	
     public StormCrawlerQueue queue = new StormCrawlerQueue();
     public int maxDocSize;
+    public int count;
     
-    int tasks = 0;
+    AtomicInteger tasks = new AtomicInteger();
     
     LocalCluster cluster;
 
-    public Crawler(int size) {
+    public Crawler(int size, int count) {
     	this.maxDocSize = size;
+    	this.count = count;
     }
 
     /**
@@ -48,9 +53,9 @@ public class Crawler implements CrawlMaster {
         
         // build the topology
         TopologyBuilder builder = new TopologyBuilder();
-        builder.setSpout(QUEUE_SPOUT, queueSpout, 1);
-        builder.setBolt(DOCUMENT_FETCH_BOLT, documentFetchBolt, 4).shuffleGrouping(QUEUE_SPOUT);
-        builder.setBolt(LINK_EXTRACTOR_BOLT, linkExtractorBolt, 4).shuffleGrouping(DOCUMENT_FETCH_BOLT);
+        builder.setSpout(QUEUE_SPOUT, queueSpout, 3);
+        builder.setBolt(DOCUMENT_FETCH_BOLT, documentFetchBolt, 6).shuffleGrouping(QUEUE_SPOUT);
+        builder.setBolt(LINK_EXTRACTOR_BOLT, linkExtractorBolt, 6).shuffleGrouping(DOCUMENT_FETCH_BOLT);
         
         cluster = new LocalCluster();
         Topology topo = builder.createTopology();
@@ -68,26 +73,30 @@ public class Crawler implements CrawlMaster {
 		// submit topology to the cluster
         cluster.submitTopology("crawl", config, 
         		builder.createTopology());
+        
+        startDate = new Date();
     }
 
     @Override
-    public boolean isDone() {
+    public boolean isWorking() {
     	// we are done when the queue is empty or we've gotten the max number of docs and all worker tasks 
     	// are finished
-        return queue.size == 0 && this.tasks == 0;
+//        return this.tasks.get() != 0;
+    	return false;
     }
 
     /**
      * Workers should notify when they are processing an URL
      */
-    @Override
-    public void setWorking(boolean working) {
-    	if (working) {
-    		tasks += 1; // one for the link extractor
-    	} else {
-    		tasks -= 1; // called when link extractor finishes
-    	}
-    }
+//    @Override
+//    public void setWorking(boolean working) {
+//    	if (working) {
+//    		this.tasks.incrementAndGet(); // one for the link extractor
+//    	} else {
+//    		this.tasks.decrementAndGet(); // called when link extractor finishes
+//    	}
+//    	System.out.println(tasks);
+//    }
 
     /**
      * Workers should call this when they exit, so the master knows when it can shut
@@ -100,7 +109,6 @@ public class Crawler implements CrawlMaster {
     public void shutdown() {
     	cluster.killTopology("crawl");
     	cluster.shutdown();
-    	System.exit(0);
     }
 
     /**

@@ -7,6 +7,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -18,18 +20,37 @@ import javax.net.ssl.HttpsURLConnection;
 public class RobotsTxtUtils {	
 	
 	String robot;
-	String domain;
+	String content;
 	Set<String> allowed;
 	Set<String> disallowed;
-	int delay;
+	double delay;
 	
-	public RobotsTxtUtils(String robot, String domain) {
+	public RobotsTxtUtils(String robot, String content) {
 		this.robot = robot;
-		this.domain = domain;
+		this.content = content;
 		this.allowed = new HashSet<String>();
 		this.disallowed = new HashSet<String>();
 		this.delay = 0;
 		parseRobotsTxt();
+	}
+	
+	private String getRegex(String template) {
+		String regExSpecialChars = "<([{\\^-=$!|]})?+.>";
+		String regExSpecialCharsRE = regExSpecialChars.replaceAll( ".", "\\\\$0");
+		Pattern reCharsREP = Pattern.compile( "[" + regExSpecialCharsRE + "]");
+
+		Matcher m = reCharsREP.matcher(template);
+	    template = m.replaceAll("\\\\$0");
+		
+		template = template.replaceAll("\\*", ".*");
+				
+		if (!template.endsWith("$")) {
+			template += ".*";
+		} else {
+			template = template.substring(0, template.length() - 2);
+		}
+		
+		return template;
 	}
 	
 	/**
@@ -39,7 +60,7 @@ public class RobotsTxtUtils {
 	 */
 	public boolean isAllowed(String filePath) {
 		for (String path : allowed) {
-			if (filePath.startsWith(path)) {
+			if (filePath.matches(getRegex(path))) {
 				return true;
 			}
 		}
@@ -53,7 +74,7 @@ public class RobotsTxtUtils {
 	 */
 	public boolean isDisallowed(String filePath) {
 		for (String path : disallowed) {
-			if (filePath.startsWith(path)) {
+			if (filePath.matches(getRegex(path))) {
 				return true;
 			}
 		}
@@ -64,7 +85,7 @@ public class RobotsTxtUtils {
 	 * Get the Crawl-delay
 	 * @return
 	 */
-	public int getDelay() {
+	public double getDelay() {
 		return delay;
 	}
 
@@ -72,40 +93,6 @@ public class RobotsTxtUtils {
 	 * Helper function to parse the robots.txt file
 	 */
 	private void parseRobotsTxt() {
-		
-		// construct url and connection to get the content
-		URL urlObj;
-		try {
-			urlObj = new URL(domain + "/robots.txt");
-		} catch (MalformedURLException e) {
-			e.printStackTrace();
-			return;
-		}
-		
-    	HttpURLConnection urlConnection;
-
-    	try {
-			if (domain.startsWith("https")) {
-				urlConnection = (HttpsURLConnection) urlObj.openConnection();
-			} else {
-				urlConnection = (HttpURLConnection) urlObj.openConnection();
-			}
-    	} catch(IOException e) {
-    		e.printStackTrace();
-    		return;
-    	}
-    	
-		urlConnection.setRequestProperty("User-Agent", "cis455crawler");
-		
-		String content = "";
-		try {
-			BufferedInputStream in = new BufferedInputStream(urlConnection.getInputStream());
-		    content = new String(in.readAllBytes());
-		} catch (IOException e) {
-			// case when no robots.txt exists
-			return;
-		}
-    	
 		// split the robots.txt file by lines
     	String[] lineSplit = content.split("\n");
     	String currentUserAgent = "";
@@ -157,7 +144,7 @@ public class RobotsTxtUtils {
     		// got crawl delay keyword
     		} else if (line.startsWith("Crawl-delay:") && parseAgent) {
     			String delayString = line.substring(line.indexOf(":") + 1).trim();
-    			delay = Integer.parseInt(delayString);
+    			delay = Double.parseDouble(delayString);
     		}
     	} 	
 	}

@@ -52,21 +52,17 @@ public class QueueSpout implements IRichSpout {
 	}
 
 	@Override
-	public void nextTuple() {
-		try {
-			String url = WorkerServer.crawler.queue.take();
+	public void nextTuple() {		
+		String url = WorkerServer.crawler.queue.take();
 
-			// null means the queue is empty, we don't emit anything
-			if (url == null) {
-				return;
-			}
-
-			// if we get a url, we emit it to the document fetch bolt
-			log.debug(getExecutorId() + " emitting " + url);
-			this.collector.emit(new Values<Object>(url));
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+		// null means the queue is empty, we don't emit anything
+		if (url == null) {
+			return;
 		}
+
+		// if we get a url, we emit it to the document fetch bolt
+		log.debug(getExecutorId() + " emitting " + url);
+		this.collector.emit(new Values<Object>(url));
 	}
 
 	@Override

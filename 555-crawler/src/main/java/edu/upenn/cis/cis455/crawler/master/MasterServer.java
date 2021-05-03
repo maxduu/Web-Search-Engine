@@ -8,25 +8,29 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import edu.upenn.cis.cis455.crawler.utils.DocumentPost;
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 import edu.upenn.cis.cis455.crawler.utils.WorkerRouter;
-import edu.upenn.cis.cis455.storage.AddDocumentResponse;
 import edu.upenn.cis.cis455.storage.MasterStorage;
+import edu.upenn.cis.cis455.storage.MasterStorageInterface;
 
 public class MasterServer {
 	
 	private static List<String> workerList = new ArrayList<String>();
-	private static MasterStorage masterStorage;
-	private static int count;
+	private static MasterStorageInterface masterStorage;
+	private static AtomicInteger documentsCrawled = new AtomicInteger();
+	private static int stopCount;
+	private static int lastCount = -1;
+
 	
 	private static HttpURLConnection postWorkerStart(String address, Map<String, String> config) throws IOException {
 		ObjectMapper mapper = new ObjectMapper();
@@ -46,30 +50,57 @@ public class MasterServer {
 		return conn;
 	}
 	
-	private static void shutdown() {
-		
+	private static void shutdown() throws IOException {
+		System.err.println("IN SHUTDOWN");
+		// make a request to the workers to shutdown
+		for (String worker : workerList) {
+			URL url;
+			if (worker.startsWith("http")) {
+    			url = new URL(worker + "/shutdown");    			
+			} else {
+    			url = new URL("http://" + worker + "/shutdown");    			
+			}
+
+			HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+			if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+				throw new RuntimeException("Request failed");
+			}
+			System.err.println("SHUTDOWN WORKER");
+		}
+
+		// Call System.exit via another thread after this function has returned status 200
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					Thread.sleep(5000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				masterStorage.close();
+				System.exit(0);
+			}
+		}).start();
 	}
 	
 	public static void main(String[] args) {
-        if (args.length != 5) {
+        if (args.length < 4) {
             System.out.println("Usage: Master Server {start URL} {RDS environment path} {max doc size in MB} {number of files to index} {port}");
             System.exit(1);
         }
         
-        String startUrl = args[0];
-        String rdsPath = args[1];
-        int size = Integer.valueOf(args[2]);
-        count = Integer.valueOf(args[3]);
-        int myPort = Integer.valueOf(args[4]);
+        String storagePath = args[0];
+        int size = Integer.valueOf(args[1]);
+        stopCount = Integer.valueOf(args[2]);
+        int myPort = Integer.valueOf(args[3]);
 
         port(myPort);
         
-        // TODO: THIS IS TEMP UNTIL RDS IS SET UP
-        File directory = new File(rdsPath);
+        File directory = new File(storagePath);
         if (! directory.exists()){
             directory.mkdirs();
         } 
-        masterStorage = new MasterStorage(rdsPath);
+        masterStorage = new MasterStorage(storagePath);
         
         System.out.println("Master node startup, on port " + myPort);
 
@@ -84,9 +115,17 @@ public class MasterServer {
         });
         
 		get("/start", (req, res) -> {
+			documentsCrawled.set(masterStorage.getCorpusSize());
+			
+			if (documentsCrawled.get() >= stopCount) {
+				shutdown();
+				return "<h1>Exceeded document count!</h1>";
+			}
+			
 			Map<String, String> config = new HashMap<String, String>();
 			config.put("workers", workerList.toString());
 			config.put("size", String.valueOf(size));
+			config.put("count", String.valueOf(stopCount));
 			
 			for (int i = 0; i < workerList.size(); i++) {
 				String dest = workerList.get(i);
@@ -98,9 +137,12 @@ public class MasterServer {
 				}
 			}
 			
-			if (WorkerRouter.sendUrlToWorker(startUrl, workerList.toString()).getResponseCode() 
-					!= HttpURLConnection.HTTP_OK) {
-				throw new RuntimeException("Worker add start URL request failed");
+			for (int i = 4; i < args.length; i++) {
+				String startUrl = args[i];
+				if (WorkerRouter.sendUrlToWorker(new URLInfo(startUrl).toString(), workerList.toString()).getResponseCode() 
+						!= HttpURLConnection.HTTP_OK) {
+					throw new RuntimeException("Worker add start URL request failed");
+				}
 			}
 
 			return "<h1>Started crawling</h1>";
@@ -111,25 +153,42 @@ public class MasterServer {
 			return "<h1>Shutdown</h1>";
 		});
 		
-		post("/putdocument", (req, res) -> {
-            final ObjectMapper om = new ObjectMapper();
-            om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
-            DocumentPost body = om.readValue(req.body(), DocumentPost.class);
-			
-			AddDocumentResponse response = masterStorage.addDocument(body.url, body.contents, body.type, body.modified);
-			
-			if (!response.contentSeen && Boolean.parseBoolean(req.queryParams("modified"))) {
-				count -= 1;
-			}
-			
-			if (count == 0) {
-				// TODO: shutdown logic
-			}
-			
-			ObjectMapper mapper = new ObjectMapper();
-	        mapper.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
-	        return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(response);	        
+		get("/alive", (req, res) -> {
+			return "Alive";
 		});
+		
+		post("/put-content-hash", (req, res) -> {
+            String hashedContent = req.body();		
+            boolean newHash = masterStorage.addDocumentHash(hashedContent);
+            if (!newHash) {
+            	halt(409);
+            }
+            return "";
+		});
+		
+		// check if we've gotten to corpus size or we've crawled all reachable
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				while (true) {
+					try {
+						int currSize = masterStorage.getCorpusSize();
+						if (currSize >= stopCount || currSize == lastCount) {
+							shutdown();
+							break;
+						}
+						lastCount = currSize;
+						Thread.sleep(1000*60*5); // check every five minutes
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					} catch (SQLException e) {
+						e.printStackTrace();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}).start();
 		
 	}	
 }

@@ -5,10 +5,21 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.sql.SQLException;
 import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import javax.net.ssl.HttpsURLConnection;
 
 import org.apache.logging.log4j.LogManager;
@@ -20,7 +31,8 @@ import edu.upenn.cis.cis455.crawler.utils.HttpDateUtils;
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
 import edu.upenn.cis.cis455.crawler.utils.WorkerRouter;
 import edu.upenn.cis.cis455.crawler.worker.WorkerServer;
-import edu.upenn.cis.cis455.storage.AddDocumentResponse;
+import edu.upenn.cis.cis455.storage.Document;
+import edu.upenn.cis.cis455.storage.URLSeenTime;
 import edu.upenn.cis.stormlite.OutputFieldsDeclarer;
 import edu.upenn.cis.stormlite.TopologyContext;
 import edu.upenn.cis.stormlite.bolt.IRichBolt;
@@ -38,10 +50,15 @@ import edu.upenn.cis.stormlite.tuple.Values;
 public class DocumentFetchBolt implements IRichBolt {
 	static Logger log = LogManager.getLogger(DocumentFetchBolt.class);
 	
-	Fields schema = new Fields("id", "url", "document", "type");
+	public static final int BATCH_SIZE = 10;
+	
+	ExecutorService executor = Executors.newFixedThreadPool(4);
+	Fields schema = new Fields("url", "document", "type");
     String executorId = UUID.randomUUID().toString();
     private OutputCollector collector;
     Crawler crawlerInstance = WorkerServer.crawler;
+    
+    List<Document> documentBatch;
 
 	@Override
 	public String getExecutorId() {
@@ -55,15 +72,25 @@ public class DocumentFetchBolt implements IRichBolt {
 
 	@Override
 	public void cleanup() {
-		// TODO Auto-generated method stub
-		
+		if (documentBatch.size() > 0) {
+			batchWriteDocuments(false);    	
+		}
+		executor.shutdown();
+	}
+	
+	private void checkBatchWrite() {
+//	    System.out.println("DOCUMENT BATCH SIZE: " + documentBatch.size() + ", " + documentBatch);
+//	    System.out.println("QUEUE SIZE: " + crawlerInstance.queue.size);
+	    if (documentBatch.size() >= BATCH_SIZE || crawlerInstance.queue.size.get() == 0) {
+	    	batchWriteDocuments(true);
+	    }
 	}
 
 	@Override
 	public void execute(Tuple input) {
         String url = input.getStringByField("url");
         log.debug(getExecutorId() + " received " + url);
-        System.err.println(getExecutorId() + " received " + url);
+//        System.err.println(getExecutorId() + " received " + url);
         
         try {
 	        URL urlObj = new URL(url);
@@ -83,8 +110,8 @@ public class DocumentFetchBolt implements IRichBolt {
 			// set request method and user agent
 			urlConnection.setRequestMethod("HEAD");
 			urlConnection.setRequestProperty("User-Agent", "cis455crawler");
-			
-			System.err.println("Getting header info");
+			urlConnection.setConnectTimeout(5000);
+			urlConnection.setReadTimeout(5000);
 			
 			String contentType = "";
 			
@@ -93,13 +120,15 @@ public class DocumentFetchBolt implements IRichBolt {
 				contentType = urlConnection.getHeaderField("Content-Type");
 				if (!contentType.startsWith("text/html") && !contentType.startsWith("text/xml") && 
 						!contentType.startsWith("application/xml") && !contentType.contains("+xml")) {
-					System.err.println(url + " content type not compatible");
-					WorkerServer.crawler.setWorking(false);
+//					WorkerServer.crawler.setWorking(false);
+					System.err.println(url + " Content type mismatch: " + urlConnection.getHeaderField("Content-Type"));
+					checkBatchWrite();
 					return;
 				}
 			} else {
-				System.err.println("Null header");
-				WorkerServer.crawler.setWorking(false);
+//				WorkerServer.crawler.setWorking(false);
+				System.err.println(url + " Content type null");
+				checkBatchWrite();
 				return;
 			}
 			
@@ -107,63 +136,75 @@ public class DocumentFetchBolt implements IRichBolt {
 			if (urlConnection.getHeaderField("Content-Length") != null) {
 				int contentLength = Integer.parseInt(urlConnection.getHeaderField("Content-Length"));
 				if (contentLength > 1000000 * crawlerInstance.maxDocSize) {
-					System.err.println(url + " content type too long");
-					WorkerServer.crawler.setWorking(false);
+//					WorkerServer.crawler.setWorking(false);
+					checkBatchWrite();
 					return;
 				}
-			} else {
-				System.err.println("Null header");
-				WorkerServer.crawler.setWorking(false);
-				return;
 			}
 			
 			// get final url after redirects
 	    	currentUrl = urlConnection.getURL().toString();
 	    	URLInfo currentUrlInfo = new URLInfo(currentUrl);
 	    	
+	    	String currentUrlNormalized = currentUrlInfo.toString();
+	    	
 	    	// if the redirect url is on a different domain, add back into queue for the 
 	    	// correct domain
 	    	if (!urlInfo.getDomain().equals(currentUrlInfo.getDomain())) {
-	    		WorkerRouter.sendUrlToWorker(currentUrl, WorkerServer.config.get("workers"));
-	    		WorkerServer.crawler.setWorking(false);
+	    		WorkerRouter.sendUrlToWorker(currentUrlNormalized, WorkerServer.config.get("workers"));
+//	    		WorkerServer.crawler.setWorking(false);
+				checkBatchWrite();
 	    		return;
 	    	} else if (crawlerInstance.queue.getDomainQueue(currentUrlInfo.getDomain()) != null) {
 	    		DomainQueue dq = crawlerInstance.queue.getDomainQueue(currentUrlInfo.getDomain());
 	    		
 	    		// if domain is the same domain, make sure the redirect url is allowed
 	    		if (dq.checkDisallowed(currentUrl)) {
-	    			WorkerServer.crawler.setWorking(false);
+//	    			WorkerServer.crawler.setWorking(false);
+					checkBatchWrite();
 	    			return;
 	    		}
 	    	}
 			
 	    	// check if the url has been stored before and see if it has been modified since
-	    	// TODO: ADD THIS BACK WHEN WE CAN USE RDS TO SHARE DATABASE ACROSS INSTANCES
-//			if (crawlerInstance.db.urlSeen(currentUrl)) {
-//				edu.upenn.cis.cis455.storage.Document doc = crawlerInstance.db.getDocumentObjectByUrl(currentUrl);
-//				if (urlConnection.getHeaderField("Last-Modified") != null) {
-//					String lastModifiedString = urlConnection.getHeaderField("Last-Modified");
-//					Date lastModified = HttpDateUtils.parseHttpString(lastModifiedString);
-//					if (lastModified.before(doc.lastCrawled)) {
-//						
-//						// document wasn't modified, but we still need to add the hash
-//						AddDocumentResponse res = crawlerInstance.db.addDocument(currentUrl, doc.content, contentType, false);
-//						log.info(url + ": not modified");
-//
-//						// we can use the db copy if we haven't hashed the doc yet
-//						if (!res.contentSeen) {
-//							collector.emit(new Values<Object>(res.documentId, currentUrl, doc.content, 
-//									urlConnection.getHeaderField("Content-Type")));
-//						} else {
-//							WorkerServer.crawler.setWorking(false);
-//						}
-//						return;
-//					}
-//				}
-//			}
+	    	URLSeenTime urlSeen = WorkerServer.workerStorage.getUrlSeen(currentUrlNormalized);
 	    	
-	    	System.err.println("about to download");
+			if (urlSeen != null) {
+				Date lastCrawled = urlSeen.lastCrawled;
+				
+				if (crawlerInstance.startDate.before(lastCrawled)) {
+					checkBatchWrite();
+					return;
+				}
+				
+				if (urlConnection.getHeaderField("Last-Modified") != null) {
+					String lastModifiedString = urlConnection.getHeaderField("Last-Modified");
+					Date lastModified = HttpDateUtils.parseHttpString(lastModifiedString);
+					if (lastModified.before(lastCrawled)) { // add and more than one hour difference
+
+						// document wasn't modified, but we still need to add the hash
+						Document oldDoc = WorkerServer.workerStorage.getDocumentContent(currentUrlNormalized);
+						
+						if (oldDoc != null) {
+							int resCode = WorkerRouter.sendDocumentHashToMaster(WorkerServer.masterServer, oldDoc.getContent())
+									.getResponseCode();
+	
+							// we can use the db copy if we haven't hashed the doc yet
+							if (resCode == 200) {
+								collector.emit(new Values<Object>(currentUrlNormalized, oldDoc.getContent(), 
+										urlConnection.getHeaderField("Content-Type")));
+							} else {
+	//							WorkerServer.crawler.setWorking(false);
+							}
+						}
+						checkBatchWrite();
+						return;
+					}
+				}
+			}
 			
+			WorkerServer.workerStorage.addUrlSeen(currentUrlNormalized, new Date());
+	    				
 			// open new url connection to fetch the content
 			if (currentUrlInfo.isSecure()) {
 				urlConnection = (HttpsURLConnection) urlObj.openConnection();
@@ -172,37 +213,75 @@ public class DocumentFetchBolt implements IRichBolt {
 			}
 			
 			urlConnection.setRequestProperty("User-Agent", "cis455crawler");
+			urlConnection.setConnectTimeout(5000);
+			urlConnection.setReadTimeout(5000);
+			
+			if (urlConnection.getResponseCode() >= 400) {
+				System.err.println(currentUrlNormalized + " bad response code " + urlConnection.getResponseCode());
+				checkBatchWrite();
+				return;
+			}
 			
 			// download the content
 			in = new BufferedInputStream(urlConnection.getInputStream());
-	    	log.info(url + ": downloading");
+//	    	log.info(url + ": downloading");
 		    String content = new String(in.readAllBytes());
-		    		    
+		    		    		    
 		    // add content to the database - this will check if the document contents 
 		    // have been hashed and index accordingly
-		    InputStream inputStream = WorkerRouter.sendDocumentToMaster(WorkerServer.masterServer, currentUrl, content, 
-		    		contentType, true).getInputStream();
-	        final ObjectMapper om = new ObjectMapper();
-	        om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
-		    AddDocumentResponse res = om.readValue(inputStream, AddDocumentResponse.class);
-		    		    
-		    // if the contents haven't been hashed and we indexed the doc, we increment 
-		    // the crawler's counts and emit
-		    if (!res.contentSeen) {
-		    	System.err.println("EMIT");
-				collector.emit(new Values<Object>(res.documentId, currentUrl, content, 
-						urlConnection.getHeaderField("Content-Type")));
-		    } else {
-		    	WorkerServer.crawler.setWorking(false);
-		    }
+			int resCode = WorkerRouter.sendDocumentHashToMaster(WorkerServer.masterServer, content)
+					.getResponseCode();
+		    
+			if (resCode != HttpURLConnection.HTTP_OK) {
+				System.err.println(currentUrlNormalized + " Content seen " + resCode);
+				checkBatchWrite();
+		    	return;
+			}
+
+		    documentBatch.add(new Document(currentUrlNormalized, content.replaceAll("\u0000", ""), 
+		    		urlConnection.getHeaderField("Content-Type")));		    
         } catch (IOException e) {
+//        	WorkerServer.crawler.setWorking(false);
+			e.printStackTrace();
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
+        checkBatchWrite();
+	}
+	
+	private void batchWriteDocuments(boolean send) {
+		
+		List<Document> documentBatchCopy = new ArrayList<Document>(documentBatch);
+		
+		executor.execute(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					List<Integer> documentIds = WorkerServer.workerStorage.batchWriteDocuments(documentBatchCopy);
+			    	if (send) {
+				    	for (int i = 0; i < documentIds.size(); i++) {
+				    		Document doc = documentBatchCopy.get(i);
+							collector.emit(new Values<Object>(doc.getUrl(), doc.getContent(), doc.getType()));
+				    	}
+			    	}
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		});
+    		
+	    documentBatch = new ArrayList<Document>();
 	}
 
 	@Override
 	public void prepare(Map<String, String> stormConf, TopologyContext context, OutputCollector collector) {
         this.collector = collector;
+        this.documentBatch = new ArrayList<Document>();
 	}
 
 	@Override

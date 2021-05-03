@@ -6,6 +6,8 @@ import java.util.List;
 
 import edu.upenn.cis.cis455.crawler.utils.RobotsTxtUtils;
 import edu.upenn.cis.cis455.crawler.utils.URLInfo;
+import edu.upenn.cis.cis455.crawler.worker.WorkerServer;
+import edu.upenn.cis.cis455.storage.Domain;
 
 /**
  * Queues based on domains that the crawler queue stores
@@ -14,14 +16,13 @@ import edu.upenn.cis.cis455.crawler.utils.URLInfo;
  */
 public class DomainQueue {
 
-	List<String> urls = new ArrayList<String>();
-	String domain;
 	RobotsTxtUtils robotUtil;
 	Date lastRequest;
+	long domainId;
 	
-	public DomainQueue(String domain) {
-		this.domain = domain;
-		this.robotUtil = new RobotsTxtUtils("cis455crawler", domain);
+	public DomainQueue(Domain domain) {
+		this.domainId = domain.id;
+		this.robotUtil = new RobotsTxtUtils("cis455crawler", domain.robotsTxtContent);
 		this.lastRequest = new Date();
 	}
 	
@@ -34,24 +35,14 @@ public class DomainQueue {
 		if (checkDisallowed(url)) {
 			return false;
 		}
-		urls.add(url);
-		return true;
-	}
-	
-	/**
-	 * Check if the domain queue contains a url
-	 * @param url
-	 * @return
-	 */
-	public boolean contains(String url) {
-		return urls.contains(url);
+		return WorkerServer.workerStorage.addQueueUrl(url, domainId);
 	}
 	
 	/**
 	 * Get the crawler delay that is remaining
 	 * @return
 	 */
-	public long getDelayRemaining() {
+	public double getDelayRemaining() {
 		Date d = new Date();
 		return robotUtil.getDelay() * 1000 - (d.getTime() - lastRequest.getTime());
 	}
@@ -71,18 +62,11 @@ public class DomainQueue {
 	 * @return
 	 */
 	public String take() {
-		lastRequest = new Date();
-		String url = urls.get(0);
-		urls.remove(0);
+		String url = WorkerServer.workerStorage.takeQueueUrl(domainId);
+		if (url != null) {
+			lastRequest = new Date();
+		}
 		return url;
-	}
-	
-	/**
-	 * Check if the queue is empty
-	 * @return
-	 */
-	public boolean isEmpty() {
-		return urls.isEmpty();
 	}
 	
 }
