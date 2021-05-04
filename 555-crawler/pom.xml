@@ -186,13 +186,13 @@
 					<arguments>
 					    <argument>master-storage</argument>
 						<argument>1</argument>
-						<argument>2000</argument>
+						<argument>2000000</argument>
 						<argument>45555</argument>
 						<argument>https://www.cis.upenn.edu/</argument>
 						<argument>https://en.wikipedia.org/wiki/Kevin_Durant</argument>
 						<argument>https://www.foxnews.com/</argument>
-						<argument>https://www.merriam-webster.com/</argument>
-						<argument>https://www.allrecipes.com/</argument>
+						<argument>https://www.imdb.com/news/movie/</argument>
+						<argument>https://www.linkedin.com/in/kevc528/</argument>
 					</arguments>
 				</configuration>
 			</execution>
@@ -205,7 +205,7 @@
 					<mainClass>edu.upenn.cis.cis455.crawler.worker.WorkerServer</mainClass>
 					<arguments>
 						<argument>8001</argument>
-						<argument>localhost:45555</argument>
+						<argument>http://ec2-44-192-47-22.compute-1.amazonaws.com:45555</argument>
 						<argument>storage/node1</argument>
 					</arguments>
 				</configuration>
@@ -219,7 +219,7 @@
 					<mainClass>edu.upenn.cis.cis455.crawler.worker.WorkerServer</mainClass>
 					<arguments>
 						<argument>8002</argument>
-						<argument>localhost:45555</argument>
+						<argument>http://ec2-44-192-47-22.compute-1.amazonaws.com:45555</argument>
 						<argument>storage/node2</argument>
 					</arguments>
 				</configuration>

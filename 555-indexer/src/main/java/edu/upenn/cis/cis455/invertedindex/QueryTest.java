@@ -15,7 +15,7 @@ import org.tartarus.snowball.ext.englishStemmer;
 
 import scala.Tuple2;
 
-public class Query {
+public class QueryTest {
 
 	static final String DB_NAME = "postgres";
 	static final String USERNAME = "master";
@@ -40,6 +40,12 @@ public class Query {
 	}
 	
 	public static List<Tuple2<Integer, Double>> query(String[] args) {
+		try {
+			Class.forName("org.postgresql.Driver");
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}
+		
 		SparkSession spark = SparkSession
 				.builder()
 				.appName("Query")
@@ -141,21 +147,14 @@ public class Query {
 				.mapToPair(row -> new Tuple2<>((int) row.getAs("id"), new Tuple2<>(termToIndex.get(row.getAs("term")), (double) row.getAs("weight"))))
 				.groupByKey();
 
-		JavaPairRDD<Integer, Double> docToTFIDF = docWeights.mapToPair(pair -> {
+		JavaPairRDD<Integer, Double> sortedDocs = docWeights.mapToPair(pair -> {
 			// Construct weight vector for each document
 			double[] docVector = new double[queryVector.length];
 			for (Tuple2<Integer, Double> tup : pair._2) {
 				docVector[tup._1.intValue()] = tup._2.doubleValue();
 			}
-			return new Tuple2<>(pair._1, cosineSimilarity(queryVector, docVector));
-		});
-
-		JavaPairRDD<Integer, Double> docToPagerank = pagerankResultsRDD.mapToPair(row -> new Tuple2<>((int) row.getAs("id"), (double) row.getAs("rank")));
-		
-		JavaPairRDD<Integer, Double> sortedDocs = docToTFIDF.join(docToPagerank)
-				.mapToPair(pair -> new Tuple2<>(pair._2._1 + pair._2._2, pair._1))
-				.sortByKey(false)
-				.mapToPair(pair -> pair.swap());
+			return new Tuple2<>(cosineSimilarity(queryVector, docVector), pair._1);
+		}).sortByKey(false).mapToPair(pair -> pair.swap());
 		
 		// Collect the top results
 		List<Tuple2<Integer, Double>> sortedDocList = sortedDocs.take(MAX_RESULTS);

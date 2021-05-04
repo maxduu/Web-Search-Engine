@@ -6,8 +6,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -82,10 +80,15 @@ public class WorkerServer {
 			});
 			return "<h1>URL successfully added to queue</h1>";
 		});
+		
+		get("/alive", (req, res) -> {
+			return "Alive";
+		});
 
 		get("/shutdown", (req, res) -> {
 			System.err.println("IN SHUTDOWN");
 			
+			crawler.queue.pauseQueue();
 			stop = true;
 			executor.shutdownNow();
 
@@ -96,19 +99,13 @@ public class WorkerServer {
 				@Override
 				public void run() {
 					try {
-						while (crawler != null && crawler.isWorking())
-							try {
-								Thread.sleep(10);
-							} catch (InterruptedException e) {
-								e.printStackTrace();
-							}
 						if (crawler != null)
 							crawler.shutdown();
 						Thread.sleep(3000);
 						workerStorage.close();
 					} catch (InterruptedException e) {
 						e.printStackTrace();
-					}
+					} catch(Exception e) {}
 					System.exit(0);
 				}
 			}).start();

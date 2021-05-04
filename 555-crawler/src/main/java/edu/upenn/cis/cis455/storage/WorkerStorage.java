@@ -1,11 +1,6 @@
 package edu.upenn.cis.cis455.storage;
 
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -14,15 +9,11 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
+import java.util.NoSuchElementException;
 
-import javax.net.ssl.HttpsURLConnection;
-
-import com.fasterxml.jackson.core.json.ReaderBasedJsonParser;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 import com.sleepycat.je.Transaction;
-import com.sleepycat.persist.EntityIndex;
 import com.sleepycat.persist.EntityStore;
 import com.sleepycat.persist.PrimaryIndex;
 import com.sleepycat.persist.SecondaryIndex;
@@ -35,12 +26,9 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
 	EntityStore urlSeenStore;
 	PrimaryIndex<String, URLSeenTime> dateByUrl;
 	
-	EntityStore domainStore;
-	PrimaryIndex<Long, Domain> domainById;
-	
 	EntityStore queueUrlStore;
 	PrimaryIndex<String, QueueURL> queueUrlByUrl;
-	SecondaryIndex<Long, String, QueueURL> queueUrlByDomainId;
+	SecondaryIndex<Date, String, QueueURL> queueUrlByDate;
 	
 	public WorkerStorage(String directory) {
 		// create the environment
@@ -59,29 +47,21 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
         dateByUrl = urlSeenStore.getPrimaryIndex(String.class, URLSeenTime.class);
         
         // create store and indexes
-        StoreConfig domainStoreConfig = new StoreConfig();
-        domainStoreConfig.setAllowCreate(true);
-        domainStoreConfig.setTransactional(true);
-        domainStore = new EntityStore(env, "DomainStore", domainStoreConfig);
-        
-        domainById = domainStore.getPrimaryIndex(Long.class, Domain.class);
-        
-        // create store and indexes
         StoreConfig queueUrlStoreConfig = new StoreConfig();
         queueUrlStoreConfig.setAllowCreate(true);
         queueUrlStoreConfig.setTransactional(true);
         queueUrlStore = new EntityStore(env, "QueueURLStore", queueUrlStoreConfig);
         
         queueUrlByUrl = queueUrlStore.getPrimaryIndex(String.class, QueueURL.class);
-        queueUrlByDomainId = queueUrlStore.getSecondaryIndex(queueUrlByUrl, Long.class, "domainId");
+        queueUrlByDate = queueUrlStore.getSecondaryIndex(queueUrlByUrl, Date.class, "dateAdded");
 	}
 
 	@Override
-	public List<Integer> batchWriteDocuments(List<Document> documents) throws SQLException {
+	public void batchWriteDocuments(List<Document> documents) throws SQLException {
 		System.err.println("BATCH WRITING DOCUMENTS");
 		List<Integer> documentIds = new ArrayList<Integer>();
 		if (documents.size() == 0) {
-			return documentIds;
+			return;
 		}
 		
 		String urlInsertQuery = "INSERT INTO urls (url) VALUES (?) "
@@ -121,12 +101,10 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
         con.commit();
 
         con.close();		
-		return documentIds;
 	}
 
 	@Override
 	public void batchWriteLinks(List<Link> links) throws SQLException {
-		System.err.println("BATCH WRITING LINKS");
 		if (links.size() == 0) {
 			return;
 		}
@@ -194,69 +172,12 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
 	@Override
 	public void close() {
 		urlSeenStore.close();
-		domainStore.close();
 		queueUrlStore.close();
 		env.close();
 	}
 
 	@Override
-	public Map<Long, Domain> getAllDomainObj() {
-		return domainById.sortedMap();
-	}
-	
-	private String getRobotsTxt(String domain) {
-		// construct url and connection to get the content
-		URL urlObj;
-		try {
-			urlObj = new URL(domain + "/robots.txt");
-		} catch (MalformedURLException e) {
-			e.printStackTrace();
-			return "";
-		}
-		
-    	HttpURLConnection urlConnection;
-
-    	try {
-			if (domain.startsWith("https")) {
-				urlConnection = (HttpsURLConnection) urlObj.openConnection();
-			} else {
-				urlConnection = (HttpURLConnection) urlObj.openConnection();
-			}
-    	} catch(IOException e) {
-    		e.printStackTrace();
-    		return "";
-    	}
-    	
-		urlConnection.setRequestProperty("User-Agent", "cis455crawler");
-		
-		try {
-			BufferedInputStream in = new BufferedInputStream(urlConnection.getInputStream());
-		    return new String(in.readAllBytes());
-		} catch (IOException e) {
-			// case when no robots.txt exists
-			return "";
-		}
-	}
-
-	@Override
-	public Domain addDomainObj(String domain, int id) {		
-		String robotsTxt = getRobotsTxt(domain);
-		
-		Transaction txn = env.beginTransaction(null, null);
-		
-		Domain d = new Domain();
-		d.domain = domain;
-		d.id = id;
-		d.robotsTxtContent = robotsTxt;
-		
-		domainById.put(d);
-		
-		txn.commit();
-		return d;
-	}
-
-	@Override
-	public boolean addQueueUrl(String url, long domainId) {
+	public boolean addQueueUrl(String url, Date dateAdded) {
 		if (queueUrlByUrl.contains(url)) {
 			return false;
 		}
@@ -264,7 +185,7 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
 		Transaction txn = env.beginTransaction(null, null);
 		
 		QueueURL qUrl = new QueueURL();
-		qUrl.domainId = domainId;
+		qUrl.dateAdded = dateAdded;
 		qUrl.url = url;
 		
 		queueUrlByUrl.put(qUrl);
@@ -274,17 +195,20 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
 	}
 
 	@Override
-	public String takeQueueUrl(long domainId) {
-		QueueURL url = queueUrlByDomainId.get(domainId);
-		if (url == null) {
+	public String takeQueueUrl() {
+		try {
+			Transaction txn = env.beginTransaction(null, null);
+
+			Date smallestDateAdded = queueUrlByDate.sortedMap().firstKey();
+			String url = queueUrlByDate.get(smallestDateAdded).url;
+			queueUrlByUrl.delete(url);
+
+			txn.commit();
+	
+			return url;
+		} catch (NoSuchElementException e) {
 			return null;
 		}
-		
-		Transaction txn = env.beginTransaction(null, null);
-		queueUrlByUrl.delete(url.url);
-		txn.commit();
-
-		return url.url;
 	}
 
 	@Override
