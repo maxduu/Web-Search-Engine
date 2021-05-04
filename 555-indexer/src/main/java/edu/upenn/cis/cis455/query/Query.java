@@ -1,4 +1,4 @@
-package edu.upenn.cis.cis455.invertedindex;
+package edu.upenn.cis.cis455.query;
 
 import java.util.Arrays;
 import java.util.HashMap;
