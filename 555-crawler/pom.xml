@@ -205,7 +205,7 @@
 					<mainClass>edu.upenn.cis.cis455.crawler.worker.WorkerServer</mainClass>
 					<arguments>
 						<argument>8001</argument>
-						<argument>localhost:45555</argument>
+						<argument>http://ec2-44-192-47-22.compute-1.amazonaws.com:45555</argument>
 						<argument>storage/node1</argument>
 					</arguments>
 				</configuration>
@@ -219,7 +219,7 @@
 					<mainClass>edu.upenn.cis.cis455.crawler.worker.WorkerServer</mainClass>
 					<arguments>
 						<argument>8002</argument>
-						<argument>localhost:45555</argument>
+						<argument>http://ec2-44-192-47-22.compute-1.amazonaws.com:45555</argument>
 						<argument>storage/node2</argument>
 					</arguments>
 				</configuration>

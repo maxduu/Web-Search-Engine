@@ -80,6 +80,10 @@ public class WorkerServer {
 			});
 			return "<h1>URL successfully added to queue</h1>";
 		});
+		
+		get("/alive", (req, res) -> {
+			return "Alive";
+		});
 
 		get("/shutdown", (req, res) -> {
 			System.err.println("IN SHUTDOWN");
