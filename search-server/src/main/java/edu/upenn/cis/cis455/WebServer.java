@@ -28,7 +28,7 @@ import scala.Tuple2;
 import static spark.Spark.*;
 
 public class WebServer {
-	static final String URL_TABLE_NAME = "urls_test2";
+	static final String URL_TABLE_NAME = "urls";
 
     public static void main(String args[]) {
     	List<String> sids = new ArrayList<String>();
@@ -62,27 +62,32 @@ public class WebServer {
         	Url[] urls = new Url[ans.size()];
         	int counter = 0;
         	Statement s;
-        	for (Tuple2<Integer, Double> val : ans) {
-            	Integer id = val._1;
-            	String query =  String.format("Select * from %s where %s = %s", URL_TABLE_NAME, id.toString(), "id");
+        	String val = "(";
+        	for (Tuple2<Integer, Double> tuple : ans) {
+        		
+            	Integer id = tuple._1;
+            	val += (" " + id.toString() + ",");
+        	}
+        	if(val.length() > 1) val = val.substring(0, val.length() - 1);
+        	val += ")";
+            	String query =  String.format("Select * from %s where %s in %s", URL_TABLE_NAME, "id", val);
             	try {
         			s = connect.createStatement(0, 0);
         			ResultSet rs = s.executeQuery(query);
         			String link = null;
         			while (rs.next()) {
-        				link = rs.getString(2);
-        		    }
         				Url URL = new Url();
         				URL.setUrl(link);
         				urls[counter] = URL;
         				counter++;
+        				link = rs.getString(2);
+        		    }
         			 //doc = doc.substring(0, Math.min(1000, doc.length()));
                 	s.close();
         		} catch (SQLException e) {
         			// TODO Auto-generated catch block
         			e.printStackTrace();
         		
-        	}
         	}
         	String ret = gson.toJson(urls);
         	return ret;
