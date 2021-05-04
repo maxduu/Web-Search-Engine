@@ -24,24 +24,34 @@ public final class Indexer {
 	static final String PASSWORD = "ilovezackives";
 	static final int PORT = 5432;
 	static final String HOSTNAME = "cis555-project.ckm3s06jrxk1.us-east-1.rds.amazonaws.com";
-	
-	static final String CRAWLER_DOCS_TABLE_NAME = "crawler_docs_test2";
+
 	static final String INVERTED_INDEX_TABLE_NAME = "inverted_index";
 	static final String IDFS_TABLE_NAME = "idfs";
 	
 	public static void main(String[] args) throws Exception {
+		if (args.length == 0) {
+			System.err.println("Please supply a crawler_docs table name.");
+			System.exit(0);
+		}
+		
 		SparkSession spark = SparkSession
 				.builder()
 				.appName("Inverted Indexer")
-				.master("local[5]")
+				//.master("local[5]")
 				.getOrCreate();
 		
-		run(spark);
+		run(args[0], spark);
 		
 		spark.close();
 	}
 	
-	private static void run(SparkSession spark) {
+	private static void run(String crawlerDocsTableName, SparkSession spark) {
+		
+		try {
+			Class.forName("org.postgresql.Driver");
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}
 		
 		String jdbcUrl = "jdbc:postgresql://" + HOSTNAME + ":" + PORT + "/" + 
 				DB_NAME + "?user=" + USERNAME + "&password=" + PASSWORD;
@@ -49,10 +59,11 @@ public final class Indexer {
 		Dataset<Row> crawlerDocsDF = spark.read()
 				.format("jdbc")
 				.option("url", jdbcUrl)
-				.option("dbtable", CRAWLER_DOCS_TABLE_NAME)
+				.option("driver", "org.postgresql.Driver")
+				.option("dbtable", crawlerDocsTableName)
 				.load();
 		
-		Set<String> stopWords = StopWordReader.getStopWords();
+		Set<String> stopWords = new StopWordReader().getStopWords();
 		long numDocs = crawlerDocsDF.count();
 		
 		JavaRDD<Row> crawlerDocsRDD = crawlerDocsDF.toJavaRDD();
@@ -76,7 +87,7 @@ public final class Indexer {
 				String term = rawTerm.trim()
 						.toLowerCase()
 						.replaceFirst("^[^a-z0-9]+", "");
-				if (!term.isBlank() && !stopWords.contains(term)) {
+				if (!term.isEmpty() && !stopWords.contains(term)) {
 					stemmer.setCurrent(term);
 					if (stemmer.stem()){
 					    term = stemmer.getCurrent();
@@ -129,6 +140,7 @@ public final class Indexer {
 		invertedIndexDF.write()
 			.format("jdbc")
 			.option("url", jdbcUrl)
+			.option("driver", "org.postgresql.Driver")
 			.option("dbtable", INVERTED_INDEX_TABLE_NAME)
 			.option("truncate", true)
 			.mode("overwrite")
@@ -141,6 +153,7 @@ public final class Indexer {
 		idfsDF.write()
 			.format("jdbc")
 			.option("url", jdbcUrl)
+			.option("driver", "org.postgresql.Driver")
 			.option("dbtable", IDFS_TABLE_NAME)
 			.option("truncate", true)
 			.mode("overwrite")
