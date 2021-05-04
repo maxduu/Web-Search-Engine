@@ -46,9 +46,9 @@ public class Crawler {
         
         // build the topology
         TopologyBuilder builder = new TopologyBuilder();
-        builder.setSpout(QUEUE_SPOUT, queueSpout, 6);
-        builder.setBolt(DOCUMENT_FETCH_BOLT, documentFetchBolt, 8).shuffleGrouping(QUEUE_SPOUT);
-        builder.setBolt(LINK_EXTRACTOR_BOLT, linkExtractorBolt, 8).shuffleGrouping(DOCUMENT_FETCH_BOLT);
+        builder.setSpout(QUEUE_SPOUT, queueSpout, 8);
+        builder.setBolt(DOCUMENT_FETCH_BOLT, documentFetchBolt, 12).shuffleGrouping(QUEUE_SPOUT);
+        builder.setBolt(LINK_EXTRACTOR_BOLT, linkExtractorBolt, 12).shuffleGrouping(DOCUMENT_FETCH_BOLT);
         
         cluster = new LocalCluster();
         Topology topo = builder.createTopology();
