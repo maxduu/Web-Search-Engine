@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -25,6 +26,7 @@ public class WorkerServer {
 	private static ExecutorService executor = Executors.newFixedThreadPool(5);
 	
 	private static boolean stop = false;
+	public static Date lastDocumentWrite = new Date();
 
 	public static void main(String[] args) throws IOException {
 		if (args.length < 3) {
@@ -66,6 +68,10 @@ public class WorkerServer {
 				return "<h1>Worker is shutting down</h1>";
 			}
 			
+			if (req.body() == null) {
+				return "<h1>Null request body</h1>";
+			}
+			
 			if (crawler.queue.capacityReached) {
 				return "<h1>Queue already has more than enough URLs</h1>";
 			}
@@ -82,7 +88,7 @@ public class WorkerServer {
 		});
 		
 		get("/alive", (req, res) -> {
-			return "Alive";
+			return lastDocumentWrite.toString();
 		});
 
 		get("/shutdown", (req, res) -> {

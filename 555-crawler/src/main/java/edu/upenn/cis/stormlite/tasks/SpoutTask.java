@@ -40,7 +40,12 @@ public class SpoutTask implements ITask {
 	@Override
 	public void run() {
 		synchronized (spout) {
-			spout.nextTuple();
+			try {
+				spout.nextTuple();
+			} catch (Exception e) {
+				System.out.println("EXCEPTION CAUGHT");
+				e.printStackTrace();
+			}
 			
 			// Schedule ourselves again at the end of the queue
 			queue.add(this);
