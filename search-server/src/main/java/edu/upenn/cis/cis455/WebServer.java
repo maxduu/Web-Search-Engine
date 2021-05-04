@@ -31,7 +31,7 @@ import static spark.Spark.*;
 
 public class WebServer {
 	static final String URL_TABLE_NAME = "urls";
-
+	static final String CONTENT_TABLE_NAME = "crawler_content";
     public static void main(String args[]) {
     	List<String> sids = new ArrayList<String>();
     	List<String> lids = new ArrayList<String>();
@@ -62,7 +62,8 @@ public class WebServer {
         	String[] arg = terms.split(" ");
         	List<Tuple2<Integer, Double>> ans = Query.query(arg);
         	Map<Integer, Double> ansmap = new HashMap<Integer, Double>();
-        	Map<String, Double> urlmap = new HashMap<String, Double>();
+        	Map<Integer, String> urlmap = new HashMap<Integer, String>();
+        	Map<Integer, String[]> contentsmap = new HashMap<Integer, String[]>();
         	Url[] urls = new Url[ans.size()];
         	int counter = 0;
         	Statement s;
@@ -75,6 +76,7 @@ public class WebServer {
         	if(val.length() > 1) val = val.substring(0, val.length() - 1);
         	val += ")";
             	String query =  String.format("Select * from %s where %s in %s", URL_TABLE_NAME, "id", val);
+            	String query2 = String.format("Select * from %s where %s in %s", CONTENT_TABLE_NAME, "id", val);
             	try {
         			s = connect.createStatement(0, 0);
         			ResultSet rs = s.executeQuery(query);
@@ -83,8 +85,15 @@ public class WebServer {
         				Integer id = Integer.parseInt(rs.getString(1));
         				Double d = ansmap.get(id);
         				link = rs.getString(2);
-        				urlmap.put(link, d);
+        				urlmap.put(id,  link);
         		    }
+        			ResultSet rs2 = s.executeQuery(query2);
+        			while(rs2.next()) {
+        				String[] add = new String[2];
+        				add[0] = rs2.getString(2);
+        				add[1] = rs2.getString(3);
+        			  contentsmap.put(Integer.parseInt(rs2.getString(1)), add );
+        			}
         			 //doc = doc.substring(0, Math.min(1000, doc.length()));
                 	s.close();
         		} catch (SQLException e) {
@@ -92,10 +101,18 @@ public class WebServer {
         			e.printStackTrace();
         		
         	}
-            List<Entry<String, Double>> list = new LinkedList<Entry<String, Double>>(urlmap.entrySet());
+            List<Entry<Integer, Double>> list = new LinkedList<Entry<Integer, Double>>(ansmap.entrySet());
                 list.sort(Entry.comparingByValue());
-                for (Entry<String, Double> e : list) {
-                	urls[urls.length - 1 - counter] = new Url(e.getKey());
+                for (Entry<Integer, Double> e : list) {
+                	String url = urlmap.get(e.getKey());
+                	String[] stuff = contentsmap.get(e.getKey());
+                	if(stuff != null) {
+                		urls[urls.length - 1 - counter] = new Url(url, stuff[0], stuff[1]);
+                	}
+                	else {
+                    	urls[urls.length - 1 - counter] = new Url(url, "Placeholder Title", "Placeholder content");
+
+                	}
                 	counter++;
                 }
         	String ret = gson.toJson(urls);
