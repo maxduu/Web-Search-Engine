@@ -8,9 +8,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
-
-
+import java.util.Map;
+import java.util.Map.Entry;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
@@ -59,12 +61,14 @@ public class WebServer {
         	String terms = req.queryParams("query");
         	String[] arg = terms.split(" ");
         	List<Tuple2<Integer, Double>> ans = Query.query(arg);
+        	Map<Integer, Double> ansmap = new HashMap<Integer, Double>();
+        	Map<String, Double> urlmap = new HashMap<String, Double>();
         	Url[] urls = new Url[ans.size()];
         	int counter = 0;
         	Statement s;
         	String val = "(";
         	for (Tuple2<Integer, Double> tuple : ans) {
-        		
+        		ansmap.put(tuple._1, tuple._2);
             	Integer id = tuple._1;
             	val += (" " + id.toString() + ",");
         	}
@@ -76,11 +80,10 @@ public class WebServer {
         			ResultSet rs = s.executeQuery(query);
         			String link = null;
         			while (rs.next()) {
-        				Url URL = new Url();
-        				URL.setUrl(link);
-        				urls[counter] = URL;
-        				counter++;
+        				Integer id = Integer.parseInt(rs.getString(1));
+        				Double d = ansmap.get(id);
         				link = rs.getString(2);
+        				urlmap.put(link, d);
         		    }
         			 //doc = doc.substring(0, Math.min(1000, doc.length()));
                 	s.close();
@@ -89,6 +92,12 @@ public class WebServer {
         			e.printStackTrace();
         		
         	}
+            List<Entry<String, Double>> list = new LinkedList<Entry<String, Double>>(urlmap.entrySet());
+                list.sort(Entry.comparingByValue());
+                for (Entry<String, Double> e : list) {
+                	urls[urls.length - 1 - counter] = new Url(e.getKey());
+                	counter++;
+                }
         	String ret = gson.toJson(urls);
         	return ret;
         });
@@ -131,7 +140,7 @@ public class WebServer {
         	
         	Elements node = d.getElementsByTag("title");;
         	String title = node.get(0).text();
-        	Entry e = new Entry(link, title, doc);
+        	Entry e = null;
         	String ret = gson.toJson(e);
         	return ret;
         });
