@@ -198,10 +198,15 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
 	public String takeQueueUrl() {
 		try {
 			Transaction txn = env.beginTransaction(null, null);
+			
+			String url = null;
 
 			Date smallestDateAdded = queueUrlByDate.sortedMap().firstKey();
-			String url = queueUrlByDate.get(smallestDateAdded).url;
-			queueUrlByUrl.delete(url);
+			
+			if (smallestDateAdded != null) {
+				url = queueUrlByDate.get(smallestDateAdded).url;
+				queueUrlByUrl.delete(url);
+			}
 
 			txn.commit();
 	
