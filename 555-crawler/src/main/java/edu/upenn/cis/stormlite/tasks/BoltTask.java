@@ -40,7 +40,12 @@ public class BoltTask implements ITask {
 	@Override
 	public void run() {
 		synchronized (bolt) {
-			bolt.execute(tuple);
+			try {
+				bolt.execute(tuple);
+			} catch (Exception e) {
+				System.out.println("EXCEPTION CAUGHT");
+				e.printStackTrace();
+			}
 		}
 	}
 

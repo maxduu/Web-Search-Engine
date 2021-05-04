@@ -19,6 +19,8 @@ import com.sleepycat.persist.PrimaryIndex;
 import com.sleepycat.persist.SecondaryIndex;
 import com.sleepycat.persist.StoreConfig;
 
+import edu.upenn.cis.cis455.crawler.worker.WorkerServer;
+
 public class WorkerStorage extends RDSStorage implements WorkerStorageInterface {
 
 	Environment env;
@@ -58,7 +60,6 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
 
 	@Override
 	public void batchWriteDocuments(List<Document> documents) throws SQLException {
-		System.err.println("BATCH WRITING DOCUMENTS");
 		List<Integer> documentIds = new ArrayList<Integer>();
 		if (documents.size() == 0) {
 			return;
@@ -100,7 +101,9 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
         contentInsertStmt.executeBatch();
         con.commit();
 
-        con.close();		
+        con.close();
+        
+        WorkerServer.lastDocumentWrite = new Date();
 	}
 
 	@Override
@@ -124,7 +127,7 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
 		
 		stmt.executeBatch();
         con.commit();
-        con.close();	
+        con.close();
 	}
 	
 	@Override
