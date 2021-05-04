@@ -8,6 +8,7 @@ import ResultsPage from './pages/resultspage';
 
 const App = () => (
   <Router>
+    <Route exact path='/' component={SearchPage} />
     <Route exact path={ROUTES.SEARCH} component={SearchPage} />
     <Route exact path={ROUTES.RESULTS} component={ResultsPage} />
   </Router>

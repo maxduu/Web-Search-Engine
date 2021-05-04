@@ -1,4 +1,4 @@
-package edu.upenn.cis.cis455.invertedindex;
+package edu.upenn.cis.cis455.query;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,6 +25,7 @@ public class Query {
 	
 	static final String INVERTED_INDEX_TABLE_NAME = "inverted_index";
 	static final String IDFS_TABLE_NAME = "idfs";
+	static final String PAGERANK_RESULTS_TABLE_NAME = "pagerank_results";
 	
 	static final int MAX_RESULTS = 100;
 	static final englishStemmer stemmer = new englishStemmer();
@@ -67,20 +68,22 @@ public class Query {
 			String search = arg.trim()
 					.toLowerCase()
 					.replaceFirst("^[^a-z0-9]+", "");
-			stemmer.setCurrent(search);
-			if (stemmer.stem()) {
-				search = stemmer.getCurrent();
-			}
-			termsString += "'" + search + "'" + ",";
-			int count = termToCount.containsKey(search) ? termToCount.get(search) + 1 : 1;
-			termToCount.put(search, count);
-			if (count > maxCount) {
-				maxCount = count;
-			}
-			// Map each distinct term to an index
-			if (!termToIndex.containsKey(search)) {
-				termToIndex.put(search, numDistinctSearchTerms);
-				numDistinctSearchTerms++;
+			if (!search.isEmpty()) {
+				stemmer.setCurrent(search);
+				if (stemmer.stem()) {
+					search = stemmer.getCurrent();
+				}
+				termsString += "'" + search + "'" + ",";
+				int count = termToCount.containsKey(search) ? termToCount.get(search) + 1 : 1;
+				termToCount.put(search, count);
+				if (count > maxCount) {
+					maxCount = count;
+				}
+				// Map each distinct term to an index
+				if (!termToIndex.containsKey(search)) {
+					termToIndex.put(search, numDistinctSearchTerms);
+					numDistinctSearchTerms++;
+				}
 			}
 		}
 		termsString = termsString.substring(0, termsString.length() - 1) + ")";
@@ -107,8 +110,17 @@ public class Query {
 				.option("query", "SELECT * FROM " + IDFS_TABLE_NAME + " WHERE term IN " + termsString)
 				.load();
 		
+		System.out.println("SELECT * FROM " + PAGERANK_RESULTS_TABLE_NAME);
+		
+		Dataset<Row> pagerankResultsDF = spark.read()
+				.format("jdbc")
+				.option("url", jdbcUrl)
+				.option("query", "SELECT * FROM " + PAGERANK_RESULTS_TABLE_NAME)
+				.load();
+		
 		JavaRDD<Row> invertedIndexRDD = invertedIndexDF.toJavaRDD();
 		JavaRDD<Row> idfsRDD = idfsDF.toJavaRDD();
+		JavaRDD<Row> pagerankResultsRDD = pagerankResultsDF.toJavaRDD();
 
 		// Calculate weights for each query term using IDF
 		JavaPairRDD<Integer, Double> queryWeights = idfsRDD.mapToPair(row -> {
@@ -129,15 +141,22 @@ public class Query {
 				.mapToPair(row -> new Tuple2<>((int) row.getAs("id"), new Tuple2<>(termToIndex.get(row.getAs("term")), (double) row.getAs("weight"))))
 				.groupByKey();
 
-		JavaPairRDD<Integer, Double> sortedDocs = docWeights.mapToPair(pair -> {
+		JavaPairRDD<Integer, Double> docToTFIDF = docWeights.mapToPair(pair -> {
 			// Construct weight vector for each document
 			double[] docVector = new double[queryVector.length];
 			for (Tuple2<Integer, Double> tup : pair._2) {
 				docVector[tup._1.intValue()] = tup._2.doubleValue();
 			}
-			return new Tuple2<>(cosineSimilarity(queryVector, docVector), pair._1);
-		}).sortByKey(false).mapToPair(pair -> pair.swap());
+			return new Tuple2<>(pair._1, cosineSimilarity(queryVector, docVector));
+		});
 
+		JavaPairRDD<Integer, Double> docToPagerank = pagerankResultsRDD.mapToPair(row -> new Tuple2<>((int) row.getAs("id"), (double) row.getAs("rank")));
+		
+		JavaPairRDD<Integer, Double> sortedDocs = docToTFIDF.join(docToPagerank)
+				.mapToPair(pair -> new Tuple2<>(pair._2._1 + pair._2._2, pair._1))
+				.sortByKey(false)
+				.mapToPair(pair -> pair.swap());
+		
 		// Collect the top results
 		List<Tuple2<Integer, Double>> sortedDocList = sortedDocs.take(MAX_RESULTS);
 		

@@ -10,10 +10,11 @@ import java.io.*;
  */
 public class StopWordReader {
 
-    public static Set<String> getStopWords() {
+    public Set<String> getStopWords() {
     	BufferedReader reader = null;
     	try {
-            reader = new BufferedReader(new FileReader("src/main/resources/nlp_en_stop_words.txt"));
+    		InputStream in = getClass().getResourceAsStream("/nlp_en_stop_words.txt");
+            reader = new BufferedReader(new InputStreamReader(in));
         } catch (Exception e) {
             e.printStackTrace();
         }
