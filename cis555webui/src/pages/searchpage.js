@@ -5,15 +5,15 @@ import Columns from 'react-bulma-components/lib/components/columns';
 import { Field, Input } from 'react-bulma-components/lib/components/form';
 import Button from 'react-bulma-components/lib/components/button';
 import Hero from 'react-bulma-components/lib/components/hero';
-import axios from 'axios';
 
+import * as ROUTES from '../constants/routes';
 const logo = '../../walmart-google.png';
 
 const SearchPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const onSearchClick = () => {
-    // Do some axios http requests here
+    window.location = `${ROUTES.RESULTS}?search=${searchTerm} `;
   };
 
   return (
@@ -23,7 +23,9 @@ const SearchPage = () => {
         <Hero size='medium'>
           <Hero.Body>
             <Container>
-              <Image src={logo} />
+              <a href={ROUTES.SEARCH}>
+                <Image src={logo} />
+              </a>
               <br />
               <Field kind='addons'>
                 <Input
@@ -31,7 +33,10 @@ const SearchPage = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   value={searchTerm}
                 />
-                <Button renderAs='button' onClick={onSearchClick}>
+                <Button
+                  renderAs='button'
+                  onClick={onSearchClick}
+                  disabled={!searchTerm.trim().length}>
                   Search
                 </Button>
               </Field>

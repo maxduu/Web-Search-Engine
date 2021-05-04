@@ -1,17 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Card from 'react-bulma-components/lib/components/card';
 
-const ResultsCard = () => {
-  const [info, setInfo] = useState({});
-
-  return (
-    <Card>
-      <Card.Header>
-        <a href={}></a>
-      </Card.Header>
-      <Card.Content>{}</Card.Content>
-    </Card>
-  );
-};
+const ResultsCard = (resultData) => (
+  <Card>
+    <Card.Content>
+      <a href={resultData.resultData.url}>{resultData.resultData.url}</a>
+    </Card.Content>
+  </Card>
+);
 
 export default ResultsCard;
