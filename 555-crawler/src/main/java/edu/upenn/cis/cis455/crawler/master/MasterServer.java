@@ -152,7 +152,7 @@ public class MasterServer {
 		});
 		
 		get("/alive", (req, res) -> {
-			return "Alive";
+			return workerList.toString();
 		});
 		
 		post("/put-content-hash", (req, res) -> {
