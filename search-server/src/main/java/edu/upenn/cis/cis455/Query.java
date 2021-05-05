@@ -26,24 +26,15 @@ public class Query {
 	static final String INVERTED_INDEX_TABLE_NAME = "inverted_index";
 	static final String IDFS_TABLE_NAME = "idfs";
 	
-	static final int MAX_RESULTS = 100;
+	static final int MAX_RESULTS = 1000;
 	static final englishStemmer stemmer = new englishStemmer();
-	
-	public static void main(String[] args) {
-		if (args.length == 0) {
-			System.err.println("Please enter a search query.");
-			System.exit(0);
+
+	public static List<Tuple2<Integer, Double>> query(String[] args, SparkSession spark) {
+		try {
+			Class.forName("org.postgresql.Driver");
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
 		}
-		
-		query(args);
-	}
-	
-	public static List<Tuple2<Integer, Double>> query(String[] args) {
-		SparkSession spark = SparkSession
-				.builder()
-				.appName("Query")
-				.master("local[5]")
-				.getOrCreate();
 		
 		String jdbcUrl = "jdbc:postgresql://" + HOSTNAME + ":" + PORT + "/" + 
 				DB_NAME + "?user=" + USERNAME + "&password=" + PASSWORD;
@@ -67,20 +58,22 @@ public class Query {
 			String search = arg.trim()
 					.toLowerCase()
 					.replaceFirst("^[^a-z0-9]+", "");
-			stemmer.setCurrent(search);
-			if (stemmer.stem()) {
-				search = stemmer.getCurrent();
-			}
-			termsString += "'" + search + "'" + ",";
-			int count = termToCount.containsKey(search) ? termToCount.get(search) + 1 : 1;
-			termToCount.put(search, count);
-			if (count > maxCount) {
-				maxCount = count;
-			}
-			// Map each distinct term to an index
-			if (!termToIndex.containsKey(search)) {
-				termToIndex.put(search, numDistinctSearchTerms);
-				numDistinctSearchTerms++;
+			if (!search.isEmpty()) {
+				stemmer.setCurrent(search);
+				if (stemmer.stem()) {
+					search = stemmer.getCurrent();
+				}
+				termsString += "'" + search + "'" + ",";
+				int count = termToCount.containsKey(search) ? termToCount.get(search) + 1 : 1;
+				termToCount.put(search, count);
+				if (count > maxCount) {
+					maxCount = count;
+				}
+				// Map each distinct term to an index
+				if (!termToIndex.containsKey(search)) {
+					termToIndex.put(search, numDistinctSearchTerms);
+					numDistinctSearchTerms++;
+				}
 			}
 		}
 		termsString = termsString.substring(0, termsString.length() - 1) + ")";
@@ -106,14 +99,14 @@ public class Query {
 				.option("url", jdbcUrl)
 				.option("query", "SELECT * FROM " + IDFS_TABLE_NAME + " WHERE term IN " + termsString)
 				.load();
-		
+
 		JavaRDD<Row> invertedIndexRDD = invertedIndexDF.toJavaRDD();
 		JavaRDD<Row> idfsRDD = idfsDF.toJavaRDD();
 
 		// Calculate weights for each query term using IDF
 		JavaPairRDD<Integer, Double> queryWeights = idfsRDD.mapToPair(row -> {
 			String term = row.getAs("term");
-			double weight = 0.5 + 0.5 * termToQueryFreq.get(term) * (double) row.getAs("idf");
+			double weight = .4 + (1 - .4) * termToQueryFreq.get(term) * (double) row.getAs("idf");
 			return new Tuple2<>(termToIndex.get(term), weight);
 		});
 		
@@ -137,17 +130,13 @@ public class Query {
 			}
 			return new Tuple2<>(cosineSimilarity(queryVector, docVector), pair._1);
 		}).sortByKey(false).mapToPair(pair -> pair.swap());
-
+		
 		// Collect the top results
 		List<Tuple2<Integer, Double>> sortedDocList = sortedDocs.take(MAX_RESULTS);
-		
 		
 		for (Tuple2<Integer, Double> tup : sortedDocList) {
 			System.out.println(tup._1 + " " + tup._2);
 		}
-		
-
-		spark.close();
 
 		return sortedDocList;
 	}

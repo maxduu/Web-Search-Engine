@@ -18,6 +18,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.spark.sql.SparkSession;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
@@ -31,12 +32,18 @@ import static spark.Spark.*;
 
 public class WebServer {
 	static final String URL_TABLE_NAME = "urls";
-
+	static final String CONTENT_TABLE_NAME = "crawler_content";
     public static void main(String args[]) {
     	List<String> sids = new ArrayList<String>();
     	List<String> lids = new ArrayList<String>();
         Gson gson = new Gson();
 
+        SparkSession spark = SparkSession
+				.builder()
+				.appName("Query")
+				.master("local[5]")
+				.getOrCreate();
+        
         port(45555);
         Connection connect = db.getRemoteConnection();
         /*try {
@@ -56,13 +63,36 @@ public class WebServer {
         for (String ss : lids) {
         	System.out.println(ss);
         }*/
+        options("/*",
+                (request, response) -> {
+
+                    String accessControlRequestHeaders = request
+                            .headers("Access-Control-Request-Headers");
+                    if (accessControlRequestHeaders != null) {
+                        response.header("Access-Control-Allow-Headers",
+                                accessControlRequestHeaders);
+                    }
+
+                    String accessControlRequestMethod = request
+                            .headers("Access-Control-Request-Method");
+                    if (accessControlRequestMethod != null) {
+                        response.header("Access-Control-Allow-Methods",
+                                accessControlRequestMethod);
+                    }
+
+                    return "OK";
+                });
+
+        before((request, response) -> response.header("Access-Control-Allow-Origin", "*"));
+
         get("/", (req, res) -> {return "Hello World";});
         get("/search", (req, res) -> {
         	String terms = req.queryParams("query");
         	String[] arg = terms.split(" ");
-        	List<Tuple2<Integer, Double>> ans = Query.query(arg);
+        	List<Tuple2<Integer, Double>> ans = Query.query(arg, spark);
         	Map<Integer, Double> ansmap = new HashMap<Integer, Double>();
-        	Map<String, Double> urlmap = new HashMap<String, Double>();
+        	Map<Integer, String> urlmap = new HashMap<Integer, String>();
+        	Map<Integer, String[]> contentsmap = new HashMap<Integer, String[]>();
         	Url[] urls = new Url[ans.size()];
         	int counter = 0;
         	Statement s;
@@ -75,6 +105,7 @@ public class WebServer {
         	if(val.length() > 1) val = val.substring(0, val.length() - 1);
         	val += ")";
             	String query =  String.format("Select * from %s where %s in %s", URL_TABLE_NAME, "id", val);
+            	String query2 = String.format("Select * from %s where %s in %s", CONTENT_TABLE_NAME, "id", val);
             	try {
         			s = connect.createStatement(0, 0);
         			ResultSet rs = s.executeQuery(query);
@@ -83,19 +114,47 @@ public class WebServer {
         				Integer id = Integer.parseInt(rs.getString(1));
         				Double d = ansmap.get(id);
         				link = rs.getString(2);
-        				urlmap.put(link, d);
+        				urlmap.put(id,  link);
         		    }
+        			ResultSet rs2 = s.executeQuery(query2);
+        			while(rs2.next()) {
+        				String[] add = new String[2];
+        				add[0] = rs2.getString(2);
+        				add[1] = rs2.getString(3);
+        			  contentsmap.put(Integer.parseInt(rs2.getString(1)), add);
+        			}
         			 //doc = doc.substring(0, Math.min(1000, doc.length()));
                 	s.close();
         		} catch (SQLException e) {
         			// TODO Auto-generated catch block
         			e.printStackTrace();
-        		
-        	}
-            List<Entry<String, Double>> list = new LinkedList<Entry<String, Double>>(urlmap.entrySet());
+        		}
+            for (int id : ansmap.keySet()) {
+            	if (contentsmap.containsKey(id)) {
+            		String title = contentsmap.get(id)[0].toLowerCase();
+            		for (String searchTerm : arg) {
+            			if (title.contains(searchTerm.toLowerCase())) {
+            				ansmap.put(id, ansmap.get(id) + .1);
+            			}
+            		}
+            		if (title.contains(terms.toLowerCase())) {
+            			ansmap.put(id, ansmap.get(id) + .5);
+            		}
+            	}
+            }
+            List<Entry<Integer, Double>> list = new LinkedList<Entry<Integer, Double>>(ansmap.entrySet());
                 list.sort(Entry.comparingByValue());
-                for (Entry<String, Double> e : list) {
-                	urls[urls.length - 1 - counter] = new Url(e.getKey());
+                for (Entry<Integer, Double> e : list) {
+                	String url = urlmap.get(e.getKey());
+                	String[] stuff = contentsmap.get(e.getKey());
+                	/*
+                	if(stuff != null) {
+                		urls[urls.length - 1 - counter] = new Url(url, stuff[0], stuff[1]);
+                	}
+                	else {
+                    	urls[urls.length - 1 - counter] = new Url(url, "Placeholder Title", "Placeholder content");
+                	}*/
+                	urls[urls.length - 1 - counter] = new Url(url, "", "");
                 	counter++;
                 }
         	String ret = gson.toJson(urls);

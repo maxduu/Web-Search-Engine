@@ -33,16 +33,17 @@ const ResultsPage = () => {
 
   const search = (query) => {
     axios
-      .get(`${ROUTES.HOSTNAME}:${ROUTES.PORT}/search?query=${query}`)
+      .get(`http://${ROUTES.HOSTNAME}:${ROUTES.PORT}/search?query=${query}`)
       .then((res) => {
-        if (!res || !res.length) {
+        console.log(res)
+        if (!res || !res.data.length) {
           setResults([]);
           setDisplayResults([]);
           setCurrentPage(0);
           setTotalPages(0);
         } else {
-          const resultHTML = res.map((result, i) => <ResultsCard key={i} resultData={result} />);
-
+          const resultHTML = res.data.map((result, i) => <ResultsCard key={i} resultData={result} />);
+          console.log(resultHTML)
           setResults(resultHTML);
           setDisplayResults(resultHTML.slice(0, 10));
           setCurrentPage(1);
@@ -76,7 +77,7 @@ const ResultsPage = () => {
             />
             <Button
               renderAs='button'
-              onClick={() => search(searchTerm)}
+              onClick={() => {console.log(searchTerm); search(searchTerm)}}
               disabled={!searchTerm.trim().length}>
               Search
             </Button>
@@ -87,7 +88,6 @@ const ResultsPage = () => {
       <Container>
         <div>
           <Heading>Results</Heading>
-          <Heading subtitle>Query: {searchTerm}</Heading>
           {displayResults}
         </div>
       </Container>

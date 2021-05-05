@@ -2,28 +2,28 @@
 
 This README would normally document whatever steps are necessary to get your application up and running.
 
-### What is this repository for? ###
+### Names ###
+Edward Kim
+Maxwell Du
+Andrew Zhao
+Kevin Chen
+### Features ###
+Crawler that adds documents to Amazon RDS
+Indexer that takes documents and created inverted index + create TF/IDF
+PageRank algorithm written in SQL that writes to Amazon RDS.
+Query function which returns sorted list of id's matching the query.
+Script that can extract title and preview from HTML documents.
+Web server API for the query function
+UI to display search results. 
+### Extra Credit ###
+None
+### Source Files ###
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+TODO
 
-### How do I get set up? ###
+### How to Run The Project ###
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
-
-### Contribution guidelines ###
-
-* Writing tests
-* Code review
-* Other guidelines
-
-### Who do I talk to? ###
-
-* Repo owner or admin
-* Other community or team contact
+Deploy indexer, title script and Pagerank using EMR.
+Every other component can be deployed in EC2. 
+In particular, we can deploy the web server and the UI on the same EC2 node,
+with the web server running on port 45555 and the UI running on port 80.

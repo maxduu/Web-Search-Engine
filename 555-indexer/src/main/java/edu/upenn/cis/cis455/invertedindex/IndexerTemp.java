@@ -17,38 +17,32 @@ import org.tartarus.snowball.ext.englishStemmer;
 
 import scala.Tuple2;
 
-public final class Indexer {
+public final class IndexerTemp {
 	
 	static final String DB_NAME = "postgres";
-	static final String USERNAME = System.getenv("RDS_USERNAME");
-	static final String PASSWORD = System.getenv("RDS_PASSWORD");
-	static final String HOSTNAME = System.getenv("RDS_HOSTNAME");
+	static final String USERNAME = "master";
+	static final String PASSWORD = "ilovezackives";
 	static final int PORT = 5432;
-	
+	static final String HOSTNAME = "cis555-project.ckm3s06jrxk1.us-east-1.rds.amazonaws.com";
+
 	public static void main(String[] args) throws Exception {
-		if (args.length < 5) {
-			System.err.println("Usage: crawlerDocsTableName invertedIndexTableName idfsTablename headerWeight titleWeight");
+		if (args.length == 0) {
+			System.err.println("Please supply a crawler_docs table name.");
 			System.exit(0);
 		}
 		
 		SparkSession spark = SparkSession
 				.builder()
 				.appName("Inverted Indexer")
-				//.master("local[5]")
+				.master("local[5]")
 				.getOrCreate();
 		
-		run(spark, args);
+		run(args[0], spark);
 		
 		spark.close();
 	}
 	
-	private static void run(SparkSession spark, String[] args) {
-		
-		String crawlerDocsTableName = args[0];
-		String invertedIndexTableName = args[1];
-		String idfsTableName = args[2];
-		int headerWeight = Integer.valueOf(args[3]);
-		int titleWeight = Integer.valueOf(args[4]);
+	private static void run(String crawlerDocsTableName, SparkSession spark) {
 		
 		try {
 			Class.forName("org.postgresql.Driver");
@@ -74,12 +68,11 @@ public final class Indexer {
 		JavaPairRDD<Integer, String> idToContent = 
 				crawlerDocsRDD.mapToPair(row -> new Tuple2<>(row.getAs("id"), row.getAs("content")));
 
-		// Normalization factor
-		double a = .4;
-		
 		JavaPairRDD<String, Tuple2<Integer, Double>> pairCounts = idToContent.flatMapToPair(pair -> {
 			List<Tuple2<String, Tuple2<Integer, Double>>> tuples = new LinkedList<>();
 			Map<String, Integer> termToCount = new HashMap<>();
+			// Normalization factor
+			double a = .4;
 			int maxCount = 0;
 			englishStemmer stemmer = new englishStemmer();
 			
@@ -112,22 +105,23 @@ public final class Indexer {
 						.toLowerCase()
 						.replaceFirst("^[^a-z0-9]+", "");
 				if (!term.isEmpty() && !stopWords.contains(term)) {
+					// System.out.println("HEADER " + term);
 					stemmer.setCurrent(term);
 					if (stemmer.stem()){
 					    term = stemmer.getCurrent();
 					}
-					int count = termToCount.containsKey(term) ? termToCount.get(term) + headerWeight : headerWeight;
+					int count = termToCount.containsKey(term) ? termToCount.get(term) + 4 : 4;
 					termToCount.put(term, count);
-					/*
 					if (count > maxCount) {
 						maxCount = count;
 					}
-					*/
 				}
 			}
 			
 			// Weight terms in title to be worth more in TF
 			String[] titleTerms = doc.title().split("[\\p{Punct}\\s]+");
+			
+			System.out.println("title: " + java.util.Arrays.toString(titleTerms));
 			
 			for (String rawTerm : titleTerms) {
 				String term = rawTerm.trim()
@@ -138,13 +132,11 @@ public final class Indexer {
 					if (stemmer.stem()){
 					    term = stemmer.getCurrent();
 					}
-					int count = termToCount.containsKey(term) ? termToCount.get(term) + titleWeight : titleWeight;
+					int count = termToCount.containsKey(term) ? termToCount.get(term) + 10 : 10;
 					termToCount.put(term, count);
-					/*
 					if (count > maxCount) {
 						maxCount = count;
 					}
-					*/
 				}
 			}
 			
@@ -184,31 +176,8 @@ public final class Indexer {
 		Dataset<Row> invertedIndexDF = spark.createDataFrame(invertedIndexEntries, InvertedIndexEntry.class);
 		Dataset<Row> idfsDF = spark.createDataFrame(idfEntries, IDFEntry.class);
 		
-		System.out.println("Writing to inverted_index");
-		
-		invertedIndexDF.write()
-			.format("jdbc")
-			.option("url", jdbcUrl)
-			.option("driver", "org.postgresql.Driver")
-			.option("dbtable", invertedIndexTableName)
-			.option("truncate", true)
-			.mode("overwrite")
-			.save();
-		
-		System.out.println("Finished writing to inverted_index");
-		
-		System.out.println("Writing to idfs");
-		
-		idfsDF.write()
-			.format("jdbc")
-			.option("url", jdbcUrl)
-			.option("driver", "org.postgresql.Driver")
-			.option("dbtable", idfsTableName)
-			.option("truncate", true)
-			.mode("overwrite")
-			.save();
-		
-		System.out.println("Finished writing to idfs");
+		invertedIndexDF.show(5);
+		idfsDF.show(5);
 		
 	}
 	
