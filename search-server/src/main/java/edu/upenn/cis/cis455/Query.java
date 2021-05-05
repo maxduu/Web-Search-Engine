@@ -25,26 +25,16 @@ public class Query {
 	
 	static final String INVERTED_INDEX_TABLE_NAME = "inverted_index";
 	static final String IDFS_TABLE_NAME = "idfs";
-	static final String PAGERANK_RESULTS_TABLE_NAME = "pagerank_results";
 	
 	static final int MAX_RESULTS = 100;
 	static final englishStemmer stemmer = new englishStemmer();
-	
-	public static void main(String[] args) {
-		if (args.length == 0) {
-			System.err.println("Please enter a search query.");
-			System.exit(0);
+
+	public static List<Tuple2<Integer, Double>> query(String[] args, SparkSession spark) {
+		try {
+			Class.forName("org.postgresql.Driver");
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
 		}
-		
-		query(args);
-	}
-	
-	public static List<Tuple2<Integer, Double>> query(String[] args) {
-		SparkSession spark = SparkSession
-				.builder()
-				.appName("Query")
-				.master("local[5]")
-				.getOrCreate();
 		
 		String jdbcUrl = "jdbc:postgresql://" + HOSTNAME + ":" + PORT + "/" + 
 				DB_NAME + "?user=" + USERNAME + "&password=" + PASSWORD;
@@ -109,23 +99,14 @@ public class Query {
 				.option("url", jdbcUrl)
 				.option("query", "SELECT * FROM " + IDFS_TABLE_NAME + " WHERE term IN " + termsString)
 				.load();
-		
-		System.out.println("SELECT * FROM " + PAGERANK_RESULTS_TABLE_NAME);
-		
-		Dataset<Row> pagerankResultsDF = spark.read()
-				.format("jdbc")
-				.option("url", jdbcUrl)
-				.option("query", "SELECT * FROM " + PAGERANK_RESULTS_TABLE_NAME)
-				.load();
-		
+
 		JavaRDD<Row> invertedIndexRDD = invertedIndexDF.toJavaRDD();
 		JavaRDD<Row> idfsRDD = idfsDF.toJavaRDD();
-		JavaRDD<Row> pagerankResultsRDD = pagerankResultsDF.toJavaRDD();
 
 		// Calculate weights for each query term using IDF
 		JavaPairRDD<Integer, Double> queryWeights = idfsRDD.mapToPair(row -> {
 			String term = row.getAs("term");
-			double weight = 0.5 + 0.5 * termToQueryFreq.get(term) * (double) row.getAs("idf");
+			double weight = .4 + (1 - .4) * termToQueryFreq.get(term) * (double) row.getAs("idf");
 			return new Tuple2<>(termToIndex.get(term), weight);
 		});
 		
@@ -141,22 +122,14 @@ public class Query {
 				.mapToPair(row -> new Tuple2<>((int) row.getAs("id"), new Tuple2<>(termToIndex.get(row.getAs("term")), (double) row.getAs("weight"))))
 				.groupByKey();
 
-		JavaPairRDD<Integer, Double> docToTFIDF = docWeights.mapToPair(pair -> {
+		JavaPairRDD<Integer, Double> sortedDocs = docWeights.mapToPair(pair -> {
 			// Construct weight vector for each document
 			double[] docVector = new double[queryVector.length];
 			for (Tuple2<Integer, Double> tup : pair._2) {
 				docVector[tup._1.intValue()] = tup._2.doubleValue();
 			}
-			return new Tuple2<>(pair._1, cosineSimilarity(queryVector, docVector));
-		});
-
-		JavaPairRDD<Integer, Double> docToPagerank = pagerankResultsRDD.mapToPair(row -> new Tuple2<>((int) row.getAs("id"), (double) row.getAs("rank")));
-		
-		JavaPairRDD<Integer, Double> sortedDocs = docToTFIDF.join(docToPagerank)
-				.mapToPair(pair -> new Tuple2<>(1.4 * pair._2._1 + 0.6 * pair._2._2, pair._1))
-				//.mapToPair(pair -> new Tuple2<>(pair._2, pair._1))
-				.sortByKey(false)
-				.mapToPair(pair -> pair.swap());
+			return new Tuple2<>(cosineSimilarity(queryVector, docVector), pair._1);
+		}).sortByKey(false).mapToPair(pair -> pair.swap());
 		
 		// Collect the top results
 		List<Tuple2<Integer, Double>> sortedDocList = sortedDocs.take(MAX_RESULTS);

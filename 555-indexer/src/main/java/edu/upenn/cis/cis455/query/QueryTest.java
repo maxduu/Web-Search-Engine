@@ -26,7 +26,7 @@ public class QueryTest {
 	static final String INVERTED_INDEX_TABLE_NAME = "inverted_index";
 	static final String IDFS_TABLE_NAME = "idfs";
 	
-	static final int MAX_RESULTS = 400;
+	static final int MAX_RESULTS = 100;
 	static final englishStemmer stemmer = new englishStemmer();
 	
 	public static void main(String[] args) {
@@ -121,7 +121,7 @@ public class QueryTest {
 		// Calculate weights for each query term using IDF
 		JavaPairRDD<Integer, Double> queryWeights = idfsRDD.mapToPair(row -> {
 			String term = row.getAs("term");
-			double weight = .5 + (1 - .5) * termToQueryFreq.get(term) * (double) row.getAs("idf");
+			double weight = .4 + (1 - .4) * termToQueryFreq.get(term) * (double) row.getAs("idf");
 			return new Tuple2<>(termToIndex.get(term), weight);
 		});
 		

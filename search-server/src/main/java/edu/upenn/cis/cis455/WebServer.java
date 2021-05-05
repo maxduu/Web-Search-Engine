@@ -18,6 +18,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.spark.sql.SparkSession;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
@@ -37,6 +38,12 @@ public class WebServer {
     	List<String> lids = new ArrayList<String>();
         Gson gson = new Gson();
 
+        SparkSession spark = SparkSession
+				.builder()
+				.appName("Query")
+				.master("local[5]")
+				.getOrCreate();
+        
         port(45555);
         Connection connect = db.getRemoteConnection();
         /*try {
@@ -82,7 +89,7 @@ public class WebServer {
         get("/search", (req, res) -> {
         	String terms = req.queryParams("query");
         	String[] arg = terms.split(" ");
-        	List<Tuple2<Integer, Double>> ans = Query.query(arg);
+        	List<Tuple2<Integer, Double>> ans = Query.query(arg, spark);
         	Map<Integer, Double> ansmap = new HashMap<Integer, Double>();
         	Map<Integer, String> urlmap = new HashMap<Integer, String>();
         	Map<Integer, String[]> contentsmap = new HashMap<Integer, String[]>();
@@ -114,27 +121,40 @@ public class WebServer {
         				String[] add = new String[2];
         				add[0] = rs2.getString(2);
         				add[1] = rs2.getString(3);
-        			  contentsmap.put(Integer.parseInt(rs2.getString(1)), add );
+        			  contentsmap.put(Integer.parseInt(rs2.getString(1)), add);
         			}
         			 //doc = doc.substring(0, Math.min(1000, doc.length()));
                 	s.close();
         		} catch (SQLException e) {
         			// TODO Auto-generated catch block
         			e.printStackTrace();
-        		
-        	}
+        		}
+            for (int id : ansmap.keySet()) {
+            	if (contentsmap.containsKey(id)) {
+            		String title = contentsmap.get(id)[0].toLowerCase();
+            		for (String searchTerm : arg) {
+            			if (title.contains(searchTerm.toLowerCase())) {
+            				ansmap.put(id, ansmap.get(id) + .1);
+            			}
+            		}
+            		if (title.contains(terms.toLowerCase())) {
+            			ansmap.put(id, ansmap.get(id) + .5);
+            		}
+            	}
+            }
             List<Entry<Integer, Double>> list = new LinkedList<Entry<Integer, Double>>(ansmap.entrySet());
                 list.sort(Entry.comparingByValue());
                 for (Entry<Integer, Double> e : list) {
                 	String url = urlmap.get(e.getKey());
                 	String[] stuff = contentsmap.get(e.getKey());
+                	/*
                 	if(stuff != null) {
                 		urls[urls.length - 1 - counter] = new Url(url, stuff[0], stuff[1]);
                 	}
                 	else {
                     	urls[urls.length - 1 - counter] = new Url(url, "Placeholder Title", "Placeholder content");
-
-                	}
+                	}*/
+                	urls[urls.length - 1 - counter] = new Url(url, "", "");
                 	counter++;
                 }
         	String ret = gson.toJson(urls);
