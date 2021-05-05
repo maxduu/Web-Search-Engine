@@ -26,7 +26,7 @@ public class Query {
 	static final String INVERTED_INDEX_TABLE_NAME = "inverted_index";
 	static final String IDFS_TABLE_NAME = "idfs";
 	
-	static final int MAX_RESULTS = 100;
+	static final int MAX_RESULTS = 1000;
 	static final englishStemmer stemmer = new englishStemmer();
 
 	public static List<Tuple2<Integer, Double>> query(String[] args, SparkSession spark) {
@@ -137,8 +137,6 @@ public class Query {
 		for (Tuple2<Integer, Double> tup : sortedDocList) {
 			System.out.println(tup._1 + " " + tup._2);
 		}
-		
-		spark.close();
 
 		return sortedDocList;
 	}
