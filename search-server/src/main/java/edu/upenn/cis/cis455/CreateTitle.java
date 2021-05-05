@@ -40,6 +40,12 @@ public class CreateTitle {
 				.appName("Query")
 				//.master("local[5]")
 				.getOrCreate();
+		try {
+            Class.forName("org.postgresql.Driver");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
 
 		String jdbcUrl = "jdbc:postgresql://" + HOSTNAME + ":" + PORT + "/" + 
 				DB_NAME + "?user=" + USERNAME + "&password=" + PASSWORD;
