@@ -56,7 +56,7 @@ public class CreateTitle {
 				idToContent.mapToPair(pair -> new Tuple2<>(pair._1, Jsoup.parse(pair._2)));
 		JavaPairRDD<Integer, Tuple2<String, Document>> ParsedContentwithTitle = 
 				ParsedContent.mapToPair(pair -> {
-					String title = "Placeholder title";
+					String title = "Placeholder Title";
 					Elements ele = pair._2.getElementsByTag("title");
 					if(!ele.isEmpty()) {
 						Element e = ele.get(0);
@@ -68,7 +68,7 @@ public class CreateTitle {
 		
 		JavaPairRDD<Integer, Tuple2<String, Tuple2<String, Document>>> addPreview = 
 				ParsedContentwithTitle.mapToPair(pair -> {
-					String content = "Placeholder name";
+					String content = "Placeholder Content";
 					Elements ele = pair._2._2.getElementsByTag("p");
 					if(!ele.isEmpty()) {
 						content = "";
