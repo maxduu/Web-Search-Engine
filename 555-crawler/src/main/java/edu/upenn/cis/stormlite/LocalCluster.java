@@ -56,7 +56,7 @@ import edu.upenn.cis.stormlite.tasks.SpoutTask;
 public class LocalCluster implements Runnable {
 	static Logger log = LogManager.getLogger(LocalCluster.class);
 	
-	static AtomicBoolean quit = new AtomicBoolean(false);
+	public static AtomicBoolean quit = new AtomicBoolean(false);
 	
 	String theTopology;
 	
