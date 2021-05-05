@@ -25,9 +25,8 @@ public class QueryTest {
 	
 	static final String INVERTED_INDEX_TABLE_NAME = "inverted_index";
 	static final String IDFS_TABLE_NAME = "idfs";
-	static final String PAGERANK_RESULTS_TABLE_NAME = "pagerank_results";
 	
-	static final int MAX_RESULTS = 100;
+	static final int MAX_RESULTS = 400;
 	static final englishStemmer stemmer = new englishStemmer();
 	
 	public static void main(String[] args) {
@@ -115,23 +114,14 @@ public class QueryTest {
 				.option("url", jdbcUrl)
 				.option("query", "SELECT * FROM " + IDFS_TABLE_NAME + " WHERE term IN " + termsString)
 				.load();
-		
-		System.out.println("SELECT * FROM " + PAGERANK_RESULTS_TABLE_NAME);
-		
-		Dataset<Row> pagerankResultsDF = spark.read()
-				.format("jdbc")
-				.option("url", jdbcUrl)
-				.option("query", "SELECT * FROM " + PAGERANK_RESULTS_TABLE_NAME)
-				.load();
-		
+
 		JavaRDD<Row> invertedIndexRDD = invertedIndexDF.toJavaRDD();
 		JavaRDD<Row> idfsRDD = idfsDF.toJavaRDD();
-		JavaRDD<Row> pagerankResultsRDD = pagerankResultsDF.toJavaRDD();
 
 		// Calculate weights for each query term using IDF
 		JavaPairRDD<Integer, Double> queryWeights = idfsRDD.mapToPair(row -> {
 			String term = row.getAs("term");
-			double weight = 0.5 + 0.5 * termToQueryFreq.get(term) * (double) row.getAs("idf");
+			double weight = .5 + (1 - .5) * termToQueryFreq.get(term) * (double) row.getAs("idf");
 			return new Tuple2<>(termToIndex.get(term), weight);
 		});
 		
