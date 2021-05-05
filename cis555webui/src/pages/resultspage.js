@@ -88,7 +88,6 @@ const ResultsPage = () => {
       <Container>
         <div>
           <Heading>Results</Heading>
-          <Heading subtitle>Query: {searchTerm}</Heading>
           {displayResults}
         </div>
       </Container>
