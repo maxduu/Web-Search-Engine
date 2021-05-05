@@ -25,8 +25,8 @@ public class CreateTitle {
 	static final String PASSWORD = "ilovezackives";
 	static final int PORT = 5432;
 	static final String HOSTNAME = "cis555-project.ckm3s06jrxk1.us-east-1.rds.amazonaws.com";
-	static final String CRAWLER_DOCS_TABLE_NAME = "crawler_docs_test2";
-	static final String CONTENT_TABLE_NAME = "crawler_content_test3";
+	static final String CRAWLER_DOCS_TABLE_NAME = "crawler_docs";
+	static final String CONTENT_TABLE_NAME = "crawler_content";
 
     public static void main(String args[]) {
 		transform();
@@ -38,7 +38,7 @@ public class CreateTitle {
 		SparkSession spark = SparkSession
 				.builder()
 				.appName("Query")
-				.master("local[5]")
+				//.master("local[5]")
 				.getOrCreate();
 
 		String jdbcUrl = "jdbc:postgresql://" + HOSTNAME + ":" + PORT + "/" + 
@@ -46,6 +46,7 @@ public class CreateTitle {
 		Dataset<Row> crawlerDocsDF = spark.read()
 				.format("jdbc")
 				.option("url", jdbcUrl)
+				.option("driver", "org.postgresql.Driver")
 				.option("dbtable", CRAWLER_DOCS_TABLE_NAME)
 				.load();
 		JavaRDD<Row> crawlerDocsRDD = crawlerDocsDF.toJavaRDD();
@@ -55,7 +56,7 @@ public class CreateTitle {
 				idToContent.mapToPair(pair -> new Tuple2<>(pair._1, Jsoup.parse(pair._2)));
 		JavaPairRDD<Integer, Tuple2<String, Document>> ParsedContentwithTitle = 
 				ParsedContent.mapToPair(pair -> {
-					String title = "Placeholder title";
+					String title = "Placeholder Title";
 					Elements ele = pair._2.getElementsByTag("title");
 					if(!ele.isEmpty()) {
 						Element e = ele.get(0);
@@ -67,7 +68,7 @@ public class CreateTitle {
 		
 		JavaPairRDD<Integer, Tuple2<String, Tuple2<String, Document>>> addPreview = 
 				ParsedContentwithTitle.mapToPair(pair -> {
-					String content = "Placeholder name";
+					String content = "Placeholder Content";
 					Elements ele = pair._2._2.getElementsByTag("p");
 					if(!ele.isEmpty()) {
 						content = "";
@@ -92,6 +93,7 @@ public class CreateTitle {
 		contentDF.write()
 		.format("jdbc")
 		.option("url", jdbcUrl)
+		.option("driver", "org.postgresql.Driver")
 		.option("dbtable", CONTENT_TABLE_NAME)
 		.option("truncate", true)
 		.mode("overwrite")

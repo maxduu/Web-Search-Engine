@@ -188,11 +188,12 @@
 						<argument>1</argument>
 						<argument>2000000</argument>
 						<argument>45555</argument>
-						<argument>https://www.cis.upenn.edu/</argument>
-						<argument>https://en.wikipedia.org/wiki/Kevin_Durant</argument>
-						<argument>https://www.foxnews.com/</argument>
-						<argument>https://www.imdb.com/news/movie/</argument>
-						<argument>https://nsf.gov/publications/</argument>
+						<argument>https://www.brookings.edu/</argument>
+						<argument>https://www.britannica.com/</argument>
+						<argument>https://www.yelp.com/</argument>
+						<argument>https://www.reddit.com/r/technews/</argument>
+						<argument>https://arxiv.org/</argument>
+						<argument>https://www.sciencedirect.com/</argument>
 					</arguments>
 				</configuration>
 			</execution>
@@ -205,7 +206,7 @@
 					<mainClass>edu.upenn.cis.cis455.crawler.worker.WorkerServer</mainClass>
 					<arguments>
 						<argument>8001</argument>
-						<argument>http://ec2-44-192-47-22.compute-1.amazonaws.com:45555</argument>
+						<argument>http://ec2-35-170-64-22.compute-1.amazonaws.com:45555</argument>
 						<argument>storage/node1</argument>
 					</arguments>
 				</configuration>
@@ -219,7 +220,7 @@
 					<mainClass>edu.upenn.cis.cis455.crawler.worker.WorkerServer</mainClass>
 					<arguments>
 						<argument>8002</argument>
-						<argument>http://ec2-44-192-47-22.compute-1.amazonaws.com:45555</argument>
+						<argument>http://ec2-35-170-64-22.compute-1.amazonaws.com:45555</argument>
 						<argument>storage/node2</argument>
 					</arguments>
 				</configuration>

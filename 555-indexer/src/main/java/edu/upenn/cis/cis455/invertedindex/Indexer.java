@@ -20,17 +20,14 @@ import scala.Tuple2;
 public final class Indexer {
 	
 	static final String DB_NAME = "postgres";
-	static final String USERNAME = "master";
-	static final String PASSWORD = "ilovezackives";
+	static final String USERNAME = System.getenv("RDS_USERNAME");
+	static final String PASSWORD = System.getenv("RDS_PASSWORD");
+	static final String HOSTNAME = System.getenv("RDS_HOSTNAME");
 	static final int PORT = 5432;
-	static final String HOSTNAME = "cis555-project.ckm3s06jrxk1.us-east-1.rds.amazonaws.com";
-
-	static final String INVERTED_INDEX_TABLE_NAME = "inverted_index";
-	static final String IDFS_TABLE_NAME = "idfs";
 	
 	public static void main(String[] args) throws Exception {
-		if (args.length == 0) {
-			System.err.println("Please supply a crawler_docs table name.");
+		if (args.length < 5) {
+			System.err.println("Usage: crawlerDocsTableName invertedIndexTableName idfsTablename headerWeight titleWeight");
 			System.exit(0);
 		}
 		
@@ -40,12 +37,18 @@ public final class Indexer {
 				//.master("local[5]")
 				.getOrCreate();
 		
-		run(args[0], spark);
+		run(spark, args);
 		
 		spark.close();
 	}
 	
-	private static void run(String crawlerDocsTableName, SparkSession spark) {
+	private static void run(SparkSession spark, String[] args) {
+		
+		String crawlerDocsTableName = args[0];
+		String invertedIndexTableName = args[1];
+		String idfsTableName = args[2];
+		int headerWeight = Integer.valueOf(args[3]);
+		int titleWeight = Integer.valueOf(args[4]);
 		
 		try {
 			Class.forName("org.postgresql.Driver");
@@ -61,7 +64,7 @@ public final class Indexer {
 				.option("url", jdbcUrl)
 				.option("driver", "org.postgresql.Driver")
 				.option("dbtable", crawlerDocsTableName)
-				.load();
+				.load().repartition(500);
 		
 		Set<String> stopWords = new StopWordReader().getStopWords();
 		long numDocs = crawlerDocsDF.count();
@@ -71,19 +74,20 @@ public final class Indexer {
 		JavaPairRDD<Integer, String> idToContent = 
 				crawlerDocsRDD.mapToPair(row -> new Tuple2<>(row.getAs("id"), row.getAs("content")));
 
+		// Normalization factor
+		double a = .4;
+		
 		JavaPairRDD<String, Tuple2<Integer, Double>> pairCounts = idToContent.flatMapToPair(pair -> {
 			List<Tuple2<String, Tuple2<Integer, Double>>> tuples = new LinkedList<>();
 			Map<String, Integer> termToCount = new HashMap<>();
-			// Normalization factor
-			double a = .4;
 			int maxCount = 0;
 			englishStemmer stemmer = new englishStemmer();
 			
 			String content = pair._2;
 			Document doc = Jsoup.parse(content);
-			String[] rawTerms = doc.text().split("[\\p{Punct}\\s]+");
+			String[] allTerms = doc.text().split("[\\p{Punct}\\s]+");
 			
-			for (String rawTerm : rawTerms) {
+			for (String rawTerm : allTerms) {
 				String term = rawTerm.trim()
 						.toLowerCase()
 						.replaceFirst("^[^a-z0-9]+", "");
@@ -99,6 +103,51 @@ public final class Indexer {
 					}
 				}
 			}
+			
+			// Weight terms in headers to be worth more in TF
+			String[] headerTerms = doc.select("h1,h2").text().split("[\\p{Punct}\\s]+");
+
+			for (String rawTerm : headerTerms) {
+				String term = rawTerm.trim()
+						.toLowerCase()
+						.replaceFirst("^[^a-z0-9]+", "");
+				if (!term.isEmpty() && !stopWords.contains(term)) {
+					stemmer.setCurrent(term);
+					if (stemmer.stem()){
+					    term = stemmer.getCurrent();
+					}
+					int count = termToCount.containsKey(term) ? termToCount.get(term) + headerWeight : headerWeight;
+					termToCount.put(term, count);
+					/*
+					if (count > maxCount) {
+						maxCount = count;
+					}
+					*/
+				}
+			}
+			
+			// Weight terms in title to be worth more in TF
+			String[] titleTerms = doc.title().split("[\\p{Punct}\\s]+");
+			
+			for (String rawTerm : titleTerms) {
+				String term = rawTerm.trim()
+						.toLowerCase()
+						.replaceFirst("^[^a-z0-9]+", "");
+				if (!term.isEmpty() && !stopWords.contains(term)) {
+					stemmer.setCurrent(term);
+					if (stemmer.stem()){
+					    term = stemmer.getCurrent();
+					}
+					int count = termToCount.containsKey(term) ? termToCount.get(term) + titleWeight : titleWeight;
+					termToCount.put(term, count);
+					/*
+					if (count > maxCount) {
+						maxCount = count;
+					}
+					*/
+				}
+			}
+			
 			for (String term : termToCount.keySet()) {
 				// Normalize term frequency by maximum term frequency in document
 				tuples.add(new Tuple2<>(term, new Tuple2<>(pair._1, a + (1 - a) * ((double) termToCount.get(term) / maxCount))));
@@ -141,7 +190,7 @@ public final class Indexer {
 			.format("jdbc")
 			.option("url", jdbcUrl)
 			.option("driver", "org.postgresql.Driver")
-			.option("dbtable", INVERTED_INDEX_TABLE_NAME)
+			.option("dbtable", invertedIndexTableName)
 			.option("truncate", true)
 			.mode("overwrite")
 			.save();
@@ -154,7 +203,7 @@ public final class Indexer {
 			.format("jdbc")
 			.option("url", jdbcUrl)
 			.option("driver", "org.postgresql.Driver")
-			.option("dbtable", IDFS_TABLE_NAME)
+			.option("dbtable", idfsTableName)
 			.option("truncate", true)
 			.mode("overwrite")
 			.save();
