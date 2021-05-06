@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.upenn.cis.cis455.crawler.Crawler;
 import edu.upenn.cis.cis455.storage.WorkerStorage;
 import edu.upenn.cis.cis455.storage.WorkerStorageInterface;
+import edu.upenn.cis.stormlite.LocalCluster;
 
 public class WorkerServer {
 
@@ -27,6 +28,9 @@ public class WorkerServer {
 	
 	private static boolean stop = false;
 	public static Date lastDocumentWrite = new Date();
+	
+	private static int size;
+	private static int count;
 
 	public static void main(String[] args) throws IOException {
 		if (args.length < 3) {
@@ -57,10 +61,23 @@ public class WorkerServer {
 			om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
 			config = om.readValue(req.body(), Map.class);
 
-			crawler = new Crawler(Integer.parseInt(config.get("size")), Integer.parseInt(config.get("count")));
+			size = Integer.parseInt(config.get("size"));
+			count = Integer.parseInt(config.get("count"));
+			
+			crawler = new Crawler(size, count);
 			crawler.start();
 
 			return "<h1>Start crawling</h1>";
+		});
+		
+		get("/restart", (req, res) -> {
+			crawler.shutdown();
+			
+			LocalCluster.quit.set(false);
+			crawler = new Crawler(size, count);
+			crawler.start();
+			
+			return "<h1>Crawler restarted</h1>";
 		});
 
 		post("/enqueue", (req, res) -> {
