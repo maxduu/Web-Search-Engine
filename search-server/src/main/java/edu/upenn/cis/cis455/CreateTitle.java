@@ -72,9 +72,10 @@ public class CreateTitle {
 					return new Tuple2<>(pair._1, new Tuple2<>(title, pair._2));
 				});
 		
-		JavaPairRDD<Integer, Tuple2<String, Tuple2<String, Document>>> addPreview = 
+		JavaPairRDD<Integer, Tuple2<String, Tuple2<String, Tuple2<String, Document>>>> addStuff = 
 				ParsedContentwithTitle.mapToPair(pair -> {
 					String content = "Placeholder Content";
+					String helpful =  pair._2._2.select("h1,h2").text();
 					Elements ele = pair._2._2.getElementsByTag("p");
 					if(!ele.isEmpty()) {
 						content = "";
@@ -87,11 +88,11 @@ public class CreateTitle {
 						
 
 					}
-					return new Tuple2<>(pair._1, new Tuple2<>(pair._2._1, new Tuple2<>(content, pair._2._2)));
+					return new Tuple2<>(pair._1, new Tuple2<>(pair._2._1, new Tuple2<>(content, new Tuple2<>(helpful, pair._2._2))));
 				});
 		
-		JavaRDD<ContentEntry> contents  = addPreview.map(pair -> {
-			return new ContentEntry(pair._1, pair._2._1, pair._2._2._1);
+		JavaRDD<ContentEntry> contents  = addStuff.map(pair -> {
+			return new ContentEntry(pair._1, pair._2._1, pair._2._2._1, pair._2._2._2._1);
 		});
 		
 		Dataset<Row> contentDF = spark.createDataFrame(contents, ContentEntry.class);
