@@ -26,8 +26,8 @@ public final class Indexer {
 	static final int PORT = 5432;
 	
 	public static void main(String[] args) throws Exception {
-		if (args.length < 5) {
-			System.err.println("Usage: crawlerDocsTableName invertedIndexTableName idfsTablename headerWeight titleWeight");
+		if (args.length < 3) {
+			System.err.println("Usage: crawlerDocsTableName invertedIndexTableName idfsTablename");
 			System.exit(0);
 		}
 		
@@ -47,8 +47,6 @@ public final class Indexer {
 		String crawlerDocsTableName = args[0];
 		String invertedIndexTableName = args[1];
 		String idfsTableName = args[2];
-		int headerWeight = Integer.valueOf(args[3]);
-		int titleWeight = Integer.valueOf(args[4]);
 		
 		try {
 			Class.forName("org.postgresql.Driver");
@@ -75,7 +73,7 @@ public final class Indexer {
 				crawlerDocsRDD.mapToPair(row -> new Tuple2<>(row.getAs("id"), row.getAs("content")));
 
 		// Normalization factor
-		double a = .4;
+		double a = .5;
 		
 		JavaPairRDD<String, Tuple2<Integer, Double>> pairCounts = idToContent.flatMapToPair(pair -> {
 			List<Tuple2<String, Tuple2<Integer, Double>>> tuples = new LinkedList<>();
@@ -101,50 +99,6 @@ public final class Indexer {
 					if (count > maxCount) {
 						maxCount = count;
 					}
-				}
-			}
-			
-			// Weight terms in headers to be worth more in TF
-			String[] headerTerms = doc.select("h1,h2").text().split("[\\p{Punct}\\s]+");
-
-			for (String rawTerm : headerTerms) {
-				String term = rawTerm.trim()
-						.toLowerCase()
-						.replaceFirst("^[^a-z0-9]+", "");
-				if (!term.isEmpty() && !stopWords.contains(term)) {
-					stemmer.setCurrent(term);
-					if (stemmer.stem()){
-					    term = stemmer.getCurrent();
-					}
-					int count = termToCount.containsKey(term) ? termToCount.get(term) + headerWeight : headerWeight;
-					termToCount.put(term, count);
-					/*
-					if (count > maxCount) {
-						maxCount = count;
-					}
-					*/
-				}
-			}
-			
-			// Weight terms in title to be worth more in TF
-			String[] titleTerms = doc.title().split("[\\p{Punct}\\s]+");
-			
-			for (String rawTerm : titleTerms) {
-				String term = rawTerm.trim()
-						.toLowerCase()
-						.replaceFirst("^[^a-z0-9]+", "");
-				if (!term.isEmpty() && !stopWords.contains(term)) {
-					stemmer.setCurrent(term);
-					if (stemmer.stem()){
-					    term = stemmer.getCurrent();
-					}
-					int count = termToCount.containsKey(term) ? termToCount.get(term) + titleWeight : titleWeight;
-					termToCount.put(term, count);
-					/*
-					if (count > maxCount) {
-						maxCount = count;
-					}
-					*/
 				}
 			}
 			
