@@ -92,79 +92,9 @@ public class WebServer {
         get("/", (req, res) -> {return IOUtils.toString(Spark.class.getResourceAsStream("index.html"));});
 
         get("/search", (req, res) -> {
-        	String terms = req.queryParams("query");
-        	String[] arg = terms.split(" ");
-        	List<Tuple2<Integer, Double>> ans = Query.query(arg, spark);
-        	Map<Integer, Double> ansmap = new HashMap<Integer, Double>();
-        	Map<Integer, String> urlmap = new HashMap<Integer, String>();
-        	Map<Integer, String[]> contentsmap = new HashMap<Integer, String[]>();
-        	Url[] urls = new Url[ans.size()];
-        	int counter = 0;
-        	Statement s;
-        	String val = "(";
-        	for (Tuple2<Integer, Double> tuple : ans) {
-        		ansmap.put(tuple._1, tuple._2);
-            	Integer id = tuple._1;
-            	val += (" " + id.toString() + ",");
-        	}
-        	if(val.length() > 1) val = val.substring(0, val.length() - 1);
-        	val += ")";
-            	String query =  String.format("Select * from %s where %s in %s", URL_TABLE_NAME, "id", val);
-            	String query2 = String.format("Select * from %s where %s in %s", CONTENT_TABLE_NAME, "id", val);
-            	try {
-        			s = connect.createStatement(0, 0);
-        			ResultSet rs = s.executeQuery(query);
-        			String link = null;
-        			while (rs.next()) {
-        				Integer id = Integer.parseInt(rs.getString(1));
-        				Double d = ansmap.get(id);
-        				link = rs.getString(2);
-        				urlmap.put(id,  link);
-        		    }
-        			ResultSet rs2 = s.executeQuery(query2);
-        			while(rs2.next()) {
-        				String[] add = new String[2];
-        				add[0] = rs2.getString(2);
-        				add[1] = rs2.getString(3);
-        			  contentsmap.put(Integer.parseInt(rs2.getString(1)), add);
-        			}
-        			 //doc = doc.substring(0, Math.min(1000, doc.length()));
-                	s.close();
-        		} catch (SQLException e) {
-        			// TODO Auto-generated catch block
-        			e.printStackTrace();
-        		}
-            for (int id : ansmap.keySet()) {
-            	if (contentsmap.containsKey(id)) {
-            		String title = contentsmap.get(id)[0].toLowerCase();
-            		for (String searchTerm : arg) {
-            			if (title.contains(searchTerm.toLowerCase())) {
-            				ansmap.put(id, ansmap.get(id) + .1);
-            			}
-            		}
-            		if (title.contains(terms.toLowerCase())) {
-            			ansmap.put(id, ansmap.get(id) + .5);
-            		}
-            	}
-            }
-            List<Entry<Integer, Double>> list = new LinkedList<Entry<Integer, Double>>(ansmap.entrySet());
-                list.sort(Entry.comparingByValue());
-                for (Entry<Integer, Double> e : list) {
-                	String url = urlmap.get(e.getKey());
-                	String[] stuff = contentsmap.get(e.getKey());
-                	/*
-                	if(stuff != null) {
-                		urls[urls.length - 1 - counter] = new Url(url, stuff[0], stuff[1]);
-                	}
-                	else {
-                    	urls[urls.length - 1 - counter] = new Url(url, "Placeholder Title", "Placeholder content");
-                	}*/
-                	urls[urls.length - 1 - counter] = new Url(url, "", "");
-                	counter++;
-                }
-        	String ret = gson.toJson(urls);
-        	return ret;
+        	return Query.query(req.queryParams("query"), spark, connect);
         });
+        
         get("/geturl/:id", (req, res) -> {
             Statement s;
            // String json = gson.toJson(listaDePontos);
@@ -208,6 +138,7 @@ public class WebServer {
         	String ret = gson.toJson(e);
         	return ret;
         });
+        
         awaitInitialization();
     }
 }

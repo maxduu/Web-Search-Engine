@@ -4,6 +4,7 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.HashSet;
 import java.util.Set;
@@ -113,10 +114,15 @@ public class RobotsTxtUtils {
     	}
     	
 		urlConnection.setRequestProperty("User-Agent", "cis455crawler");
+		urlConnection.setConnectTimeout(5000);
+		urlConnection.setReadTimeout(5000);
 		
 		try {
 			BufferedInputStream in = new BufferedInputStream(urlConnection.getInputStream());
 		    return new String(in.readAllBytes());
+		} catch (SocketTimeoutException e) {
+			disallowed.add("/");
+			return "";
 		} catch (IOException e) {
 			// case when no robots.txt exists
 			return "";

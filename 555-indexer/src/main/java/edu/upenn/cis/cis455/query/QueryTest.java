@@ -121,7 +121,7 @@ public class QueryTest {
 		// Calculate weights for each query term using IDF
 		JavaPairRDD<Integer, Double> queryWeights = idfsRDD.mapToPair(row -> {
 			String term = row.getAs("term");
-			double weight = .4 + (1 - .4) * termToQueryFreq.get(term) * (double) row.getAs("idf");
+			double weight = .5 + .5 * termToQueryFreq.get(term) * (double) row.getAs("idf");
 			return new Tuple2<>(termToIndex.get(term), weight);
 		});
 		
@@ -170,7 +170,7 @@ public class QueryTest {
 	        normA += Math.pow(vectorA[i], 2);
 	        normB += Math.pow(vectorB[i], 2);
 	    }   
-	    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+	    return dotProduct;
 	}
 
 }
