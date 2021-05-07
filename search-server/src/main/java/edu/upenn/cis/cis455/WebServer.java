@@ -88,7 +88,7 @@ public class WebServer {
         get("/", (req, res) -> {return "Hello World";});
         
         get("/search", (req, res) -> {
-        	return Query.query(req.queryParams("query"), spark, connect);
+        	return gson.toJson(Query.query(req.queryParams("query"), spark, connect));
         });
         
         get("/geturl/:id", (req, res) -> {
