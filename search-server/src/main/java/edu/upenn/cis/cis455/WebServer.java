@@ -27,11 +27,16 @@ import org.w3c.dom.NodeList;
 import com.google.gson.Gson;
 
 import scala.Tuple2;
+import spark.Spark;
+import spark.utils.IOUtils;
 
 import static spark.Spark.*;
 
 public class WebServer {
+	static final String URL_TABLE_NAME = "urls";
+	static final String CONTENT_TABLE_NAME = "crawler_content";
 	
+
     public static void main(String args[]) {
     	List<String> sids = new ArrayList<String>();
     	List<String> lids = new ArrayList<String>();
@@ -62,7 +67,7 @@ public class WebServer {
         for (String ss : lids) {
         	System.out.println(ss);
         }*/
-        
+        staticFileLocation("/build");
         options("/*",
                 (request, response) -> {
 
@@ -84,11 +89,10 @@ public class WebServer {
                 });
 
         before((request, response) -> response.header("Access-Control-Allow-Origin", "*"));
+        get("/", (req, res) -> {return IOUtils.toString(Spark.class.getResourceAsStream("index.html"));});
 
-        get("/", (req, res) -> {return "Hello World";});
-        
         get("/search", (req, res) -> {
-        	return Query.query(req.queryParams("query"), spark, connect);
+        	return gson.toJson(Query.query(req.queryParams("query"), spark, connect));
         });
         
         get("/geturl/:id", (req, res) -> {

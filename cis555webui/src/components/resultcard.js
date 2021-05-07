@@ -6,7 +6,7 @@ const ResultsCard = (resultData) => (
     <Card.Content>
       <a href={resultData.resultData.url}><h3>{resultData.resultData.title}</h3></a>
         <h6>Url: {resultData.resultData.url}</h6>
-        <p>{resultData.resultData.content}</p>
+        <p>{resultData.resultData.preview}</p>
     </Card.Content>
   </Card>
 );
