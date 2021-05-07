@@ -66,6 +66,10 @@ public class StormCrawlerQueue {
 			}
 		}
 		
+		if (manager.checkDisallowed(url)) {
+			return;
+		}
+		
 		try {
 			boolean putSuccess = WorkerServer.workerStorage.addQueueUrl(url, manager.getNextRequestDate());
 				
