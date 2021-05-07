@@ -26,6 +26,11 @@ public class TestStorage extends TestCase {
         }  
     }
     
+    @Test
+  	public void testBasic() {
+    	assertTrue(true);
+    }
+    
 //    /**
 //     * Makes sure that we don't index the same document with same contents
 //     */

@@ -176,7 +176,7 @@ public class MasterServer {
 							break;
 						}
 						lastCount = currSize;
-						Thread.sleep(1000*60*5); // check every five minutes
+						Thread.sleep(1000*60*30); // check every 30 minutes
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					} catch (SQLException e) {
