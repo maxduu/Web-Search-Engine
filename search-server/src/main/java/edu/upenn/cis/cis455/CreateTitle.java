@@ -54,13 +54,13 @@ public class CreateTitle {
 				.option("url", jdbcUrl)
 				.option("driver", "org.postgresql.Driver")
 				.option("dbtable", CRAWLER_DOCS_TABLE_NAME)
-				.load();
+				.load().repartition(500);
 		JavaRDD<Row> crawlerDocsRDD = crawlerDocsDF.toJavaRDD();
 		JavaPairRDD<Integer, String> idToContent = 
 				crawlerDocsRDD.mapToPair(row -> new Tuple2<>(row.getAs("id"), row.getAs("content")));
 		JavaPairRDD<Integer, Document> ParsedContent = 
 				idToContent.mapToPair(pair -> new Tuple2<>(pair._1, Jsoup.parse(pair._2)));
-		JavaPairRDD<Integer, Tuple2<String, Document>> ParsedContentwithTitle = 
+		JavaPairRDD<Integer, Tuple2<String, Tuple2<String, Tuple2<String, Document>>>> addStuff = 
 				ParsedContent.mapToPair(pair -> {
 					String title = "Placeholder Title";
 					Elements ele = pair._2.getElementsByTag("title");
@@ -69,14 +69,9 @@ public class CreateTitle {
 						 title = e.text();
 
 					}
-					return new Tuple2<>(pair._1, new Tuple2<>(title, pair._2));
-				});
-		
-		JavaPairRDD<Integer, Tuple2<String, Tuple2<String, Tuple2<String, Document>>>> addStuff = 
-				ParsedContentwithTitle.mapToPair(pair -> {
 					String content = "Placeholder Content";
-					String helpful =  pair._2._2.select("h1,h2").text();
-					Elements ele = pair._2._2.getElementsByTag("p");
+					String helpful =  pair._2.select("h1,h2").text();
+					ele = pair._2.getElementsByTag("p");
 					if(!ele.isEmpty()) {
 						content = "";
 						int counter = 0;
@@ -88,7 +83,7 @@ public class CreateTitle {
 						
 
 					}
-					return new Tuple2<>(pair._1, new Tuple2<>(pair._2._1, new Tuple2<>(content, new Tuple2<>(helpful, pair._2._2))));
+					return new Tuple2<>(pair._1, new Tuple2<>(title, new Tuple2<>(content, new Tuple2<>(helpful, pair._2))));
 				});
 		
 		JavaRDD<ContentEntry> contents  = addStuff.map(pair -> {
