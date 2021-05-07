@@ -161,10 +161,11 @@ public class Query {
 		}
 		*/
 
-		System.out.println("TF/IDF + Pagerank scores finished, using top " + MAX_RESULTS + " documents");
+		System.out.println("TF/IDF + Pagerank scores finished, using top " + MAX_RESULTS + " documents of " + sortedDocList.size());
 		
 		if (sortedDocList.isEmpty()) {
-    		return "\\{\\}";
+			System.out.println("No matching documents found.\n");
+    		return "{}";
     	}
     	
 		/**
@@ -273,10 +274,11 @@ public class Query {
         		urls[urls.length - 1 - counter] = new Url(url, stuff[0], stuff[1]);
         	}
         	else {
-            	urls[urls.length - 1 - counter] = new Url(url, "Placeholder Title", "Placeholder content");
+            	urls[urls.length - 1 - counter] = new Url(url, "", "");
         	}
         	//urls[urls.length - 1 - counter] = new Url(url, String.valueOf(e.getValue()), "");
         	counter++;
+        	
         }
 
         System.out.println("Returning final document order.\n");
