@@ -6,11 +6,12 @@ public class ContentEntry {
 	private int id;
 	private String title;
 	private String content;
-	
-	public ContentEntry(int id, String title, String content) {
+	private String headers;
+	public ContentEntry(int id, String title, String content, String headers) {
 		this.id = id;
 		this.content = content;
 		this.title = title;
+		this.headers = headers;
 	}
 	
 	public int getId() {
@@ -25,6 +26,11 @@ public class ContentEntry {
 		return content;
 	}
 	
+	public String getHeaders() {
+		return headers;
+	}
+
+	
 	public void setId(int id) {
 		this.id = id;
 	}
@@ -36,5 +42,10 @@ public class ContentEntry {
 	public void setContent(String content) {
 		this.content = content;
 	}
+	
+	public void setHeader(String headers) {
+		this.headers = headers;
+	}
+
 
 }
