@@ -1,9 +1,5 @@
 package edu.upenn.cis.cis455.invertedindex;
 
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.spark.api.java.JavaPairRDD;
@@ -15,6 +11,8 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.tartarus.snowball.ext.englishStemmer;
 
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import scala.Tuple2;
 
 public final class Indexer {
@@ -26,8 +24,8 @@ public final class Indexer {
 	static final int PORT = 5432;
 	
 	public static void main(String[] args) throws Exception {
-		if (args.length < 3) {
-			System.err.println("Usage: crawlerDocsTableName invertedIndexTableName idfsTablename");
+		if (args.length < 4) {
+			System.err.println("Usage: crawlerDocsTableName invertedIndexTableName idfsTablename numPartitions");
 			System.exit(0);
 		}
 		
@@ -47,6 +45,7 @@ public final class Indexer {
 		String crawlerDocsTableName = args[0];
 		String invertedIndexTableName = args[1];
 		String idfsTableName = args[2];
+		int numPartitions = Integer.valueOf(args[3]);
 		
 		try {
 			Class.forName("org.postgresql.Driver");
@@ -62,7 +61,7 @@ public final class Indexer {
 				.option("url", jdbcUrl)
 				.option("driver", "org.postgresql.Driver")
 				.option("dbtable", crawlerDocsTableName)
-				.load().repartition(500);
+				.load().repartition(numPartitions);
 		
 		Set<String> stopWords = new StopWordReader().getStopWords();
 		long numDocs = crawlerDocsDF.count();
@@ -76,25 +75,26 @@ public final class Indexer {
 		double a = .5;
 		
 		JavaPairRDD<String, Tuple2<Integer, Double>> pairCounts = idToContent.flatMapToPair(pair -> {
-			List<Tuple2<String, Tuple2<Integer, Double>>> tuples = new LinkedList<>();
-			Map<String, Integer> termToCount = new HashMap<>();
+			ObjectArrayList<Tuple2<String, Tuple2<Integer, Double>>> tuples = new ObjectArrayList<>();
 			int maxCount = 0;
 			englishStemmer stemmer = new englishStemmer();
+			
+			Object2IntOpenHashMap<String> termToCount = new Object2IntOpenHashMap<>();
 			
 			String content = pair._2;
 			Document doc = Jsoup.parse(content);
 			String[] allTerms = doc.text().split("[\\p{Punct}\\s]+");
 			
 			for (String rawTerm : allTerms) {
-				String term = rawTerm.trim()
-						.toLowerCase()
-						.replaceFirst("^[^a-z0-9]+", "");
-				if (!term.isEmpty() && !stopWords.contains(term)) {
+				String term = rawTerm.toLowerCase()
+						.replaceAll("[^\\x00-\\x7F]", "")
+						.trim();
+				if (!term.isEmpty() && !stopWords.contains(term) && term.length() < 50) {
 					stemmer.setCurrent(term);
 					if (stemmer.stem()){
 					    term = stemmer.getCurrent();
 					}
-					int count = termToCount.containsKey(term) ? termToCount.get(term) + 1 : 1;
+					int count = termToCount.containsKey(term) ? termToCount.getInt(term) + 1 : 1;
 					termToCount.put(term, count);
 					if (count > maxCount) {
 						maxCount = count;
@@ -104,7 +104,7 @@ public final class Indexer {
 			
 			for (String term : termToCount.keySet()) {
 				// Normalize term frequency by maximum term frequency in document
-				tuples.add(new Tuple2<>(term, new Tuple2<>(pair._1, a + (1 - a) * ((double) termToCount.get(term) / maxCount))));
+				tuples.add(new Tuple2<>(term, new Tuple2<>(pair._1, a + (1 - a) * ((double) termToCount.getInt(term) / maxCount))));
 			}
 			
 			return tuples.iterator();

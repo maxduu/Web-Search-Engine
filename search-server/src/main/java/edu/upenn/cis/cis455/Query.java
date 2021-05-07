@@ -82,7 +82,7 @@ public class Query {
 				if (stemmer.stem()) {
 					search = stemmer.getCurrent();
 				}
-				termsString += "'" + search + "'" + ",";
+				termsString += "'" + search + "',";
 				int count = termToCount.containsKey(search) ? termToCount.get(search) + 1 : 1;
 				termToCount.put(search, count);
 				if (count > maxCount) {
@@ -163,7 +163,10 @@ public class Query {
 
 		System.out.println("TF/IDF + Pagerank scores finished, using top " + MAX_RESULTS + " documents");
 		
-		
+		if (sortedDocList.isEmpty()) {
+    		return "\\{\\}";
+    	}
+    	
 		/**
 		 * Obtain urls, content previews for top ranked documents,
 		 * and improve search results with additional measures
@@ -174,22 +177,25 @@ public class Query {
     	Url[] urls = new Url[sortedDocList.size()];
     	int counter = 0;
     	Statement s;
-    	
+
     	StringBuilder queryStringBuilder = new StringBuilder();
     	queryStringBuilder.append("(");
     	
     	for (Tuple2<Integer, Double> tuple : sortedDocList) {
     		int id = tuple._1;
     		ansmap.put(id, tuple._2);
-        	queryStringBuilder.append(" " + id + ",");
+        	queryStringBuilder.append("'" + id + "',");
     	}
     	
     	String queryString = queryStringBuilder.toString();
     	if(queryString.length() > 1) queryString = queryString.substring(0, queryString.length() - 1);
     	queryString += ")";
     	
-    	String urlQuery =  String.format("Select * from %s where %s in %s", URL_TABLE_NAME, "id", queryString);
-    	String contentQuery = String.format("Select * from %s where %s in %s", CONTENT_TABLE_NAME, "id", queryString);
+    	String urlQuery =  String.format("SELECT * FROM %s WHERE %s IN %s", URL_TABLE_NAME, "id", queryString);
+    	String contentQuery = String.format("SELECT * FROM %s WHERE %s IN %s", CONTENT_TABLE_NAME, "id", queryString);
+    	
+    	System.out.println(urlQuery);
+    	System.out.println(contentQuery);
     	
     	try {
 			s = connect.createStatement(0, 0);
@@ -262,14 +268,14 @@ public class Query {
         for (Entry<Integer, Double> e : list) {
         	String url = urlmap.get(e.getKey());
         	String[] stuff = contentsmap.get(e.getKey());
-        	/*
+        	
         	if(stuff != null) {
         		urls[urls.length - 1 - counter] = new Url(url, stuff[0], stuff[1]);
         	}
         	else {
             	urls[urls.length - 1 - counter] = new Url(url, "Placeholder Title", "Placeholder content");
-        	}*/
-        	urls[urls.length - 1 - counter] = new Url(url, String.valueOf(e.getValue()), "");
+        	}
+        	//urls[urls.length - 1 - counter] = new Url(url, String.valueOf(e.getValue()), "");
         	counter++;
         }
 
