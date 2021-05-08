@@ -65,7 +65,7 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
 			return;
 		}
 		
-		String urlInsertQuery = "INSERT INTO urls (url) VALUES (?) "
+		String urlInsertQuery = "INSERT INTO urls_test (url) VALUES (?) "
 				+ "ON CONFLICT (url) DO UPDATE SET url=excluded.url "
 				+ "RETURNING id";
 		
@@ -85,7 +85,7 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
         	documentIds.add(urlInsertRs.getInt(1));
         }
         
-        String contentInsertQuery = "INSERT INTO crawler_docs (id, content, type) VALUES (?, ?, ?) "
+        String contentInsertQuery = "INSERT INTO crawler_docs_test (id, content, type) VALUES (?, ?, ?) "
         		+ "ON CONFLICT (id) DO UPDATE SET content=excluded.content, type=excluded.type";
 		PreparedStatement contentInsertStmt = con.prepareStatement(contentInsertQuery);
         
@@ -112,7 +112,7 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
 			return;
 		}
 		
-		String query = "INSERT INTO links_url (source, dest) VALUES (?, ?) "
+		String query = "INSERT INTO links_url_test (source, dest) VALUES (?, ?) "
 				+ "ON CONFLICT (source, dest) DO NOTHING";
 		
 		Connection con = getDBConnection();
@@ -132,10 +132,10 @@ public class WorkerStorage extends RDSStorage implements WorkerStorageInterface 
 	
 	@Override
 	public Document getDocumentContent(String url) throws SQLException {
-		String query = "SELECT urls.id, urls.url, crawler_docs.content, crawler_docs.type "
-				+ "FROM crawler_docs "
-				+ "INNER JOIN urls ON urls.id = crawler_docs.id "
-				+ "WHERE urls.url= ?";
+		String query = "SELECT urls_test.id, urls_test.url, crawler_docs_test.content, crawler_docs_test.type "
+				+ "FROM crawler_docs_test "
+				+ "INNER JOIN urls_test ON urls_test.id = crawler_docs_test.id "
+				+ "WHERE urls_test.url= ?";
 		
 		Connection con = getDBConnection();
 		PreparedStatement stmt = con.prepareStatement(query);

@@ -48,7 +48,7 @@ public class MasterStorage extends RDSStorage implements MasterStorageInterface 
 		Connection con = getDBConnection();
 		
 		Statement stmt = con.createStatement();
-        ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM crawler_docs");
+        ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM crawler_docs_test");
         rs.next();
         int corpusSize = rs.getInt(1);
         
