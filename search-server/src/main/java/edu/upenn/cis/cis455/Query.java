@@ -1,5 +1,7 @@
 package edu.upenn.cis.cis455;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.sql.Connection;
 
 
@@ -39,9 +41,13 @@ public class Query {
 	static final String URL_TABLE_NAME = "urls";
 	static final String CONTENT_TABLE_NAME = "crawler_content";
 	
+	static final String PAGERANK_RESULTS_TABLE_NAME = "pagerank_results";
+	
 	static final int MAX_RESULTS = 1000;
 	
 	static final englishStemmer stemmer = new englishStemmer();
+	
+	static final double pagerankFactor = 0.8;
 	
 	/* BONUSES:
 	 * Title contains a search term or stemmed search term
@@ -54,6 +60,8 @@ public class Query {
 	public static Webpage[] query(String query, SparkSession spark, Connection connect) {
 		
 		System.out.println("Processing query: " + query);
+		
+		query = query.toLowerCase();
 		
 		try {
 			Class.forName("org.postgresql.Driver");
@@ -173,9 +181,10 @@ public class Query {
 		 */
     	Map<Integer, String> urlMap = new HashMap<>();
     	Map<Integer, String[]> contentsMap = new HashMap<>();
+    	Map<Integer, String> idToDomain = new HashMap<>();
+    	Map<String, Double> domainToPagerank = new HashMap<>();
     	
-    	StringBuilder idQueryBuilder = new StringBuilder();
-    	idQueryBuilder.append("(");
+    	StringBuilder idQueryBuilder = new StringBuilder("(");
     	
     	for (Tuple2<Integer, Double> tuple : sortedDocList) {
     		idQueryBuilder.append("'" + tuple._1 + "',");
@@ -198,19 +207,44 @@ public class Query {
 				int id = Integer.parseInt(urlResults.getString(1));
 				link = urlResults.getString(2);
 				urlMap.put(id,  link);
+				idToDomain.put(id, new URL(link).getAuthority());
 		    }
 			ResultSet contentResults = s.executeQuery(contentQuery);
 			while (contentResults.next()) {
-				String[] add = new String[2];
+				String[] add = new String[3];
 				add[0] = contentResults.getString(2);
 				add[1] = contentResults.getString(3);
 				add[2] = contentResults.getString(4);
 				contentsMap.put(Integer.parseInt(contentResults.getString(1)), add);
 			}
-			 //doc = doc.substring(0, Math.min(1000, doc.length()));
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return new Webpage[0];
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+			return new Webpage[0];
+		}
+    	
+    	// Calculate PageRank for each domain
+    	StringBuilder pagerankQueryBuilder = new StringBuilder("(");
+    	for (String domain : idToDomain.values()) {
+    		pagerankQueryBuilder.append("'" + domain + "',");
+    	}
+    	String pagerankQueryString = pagerankQueryBuilder.toString();
+    	if (pagerankQueryString.length() > 1) pagerankQueryString = pagerankQueryString.substring(0, pagerankQueryString.length() - 1);
+    	pagerankQueryString += ")";
+    	
+    	String pagerankQuery =  String.format("SELECT * FROM %s WHERE %s IN %s", PAGERANK_RESULTS_TABLE_NAME, "domain", pagerankQueryString);
+    	
+    	System.out.println(pagerankQuery);
+    	
+    	try {
+			ResultSet pagerankResults = s.executeQuery(pagerankQuery);
+			while (pagerankResults.next()) {
+				domainToPagerank.put(pagerankResults.getString("domain"), pagerankResults.getDouble("rank"));
+		    }
         	s.close();
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return new Webpage[0];
 		}
@@ -224,9 +258,22 @@ public class Query {
     			webpage.setTitle(String.valueOf(tuple._2));
     			webpages.add(webpage);
     		} else {
-    			Webpage webpage = new Webpage(urlMap.get(id), contents[0], contents[1], contents[2], tuple._2);
-    			bonusWebpage(webpage, query, fullArgs);
-    			webpages.add(webpage);
+    			try {
+	    			Double pagerank = domainToPagerank.get(idToDomain.get(id));
+	    			if (pagerank == null) {
+	    				pagerank = Double.valueOf(0);
+	    			}
+	    			double weight = pagerankFactor * pagerank + (1 - pagerankFactor) * tuple._2;
+	    			// System.out.println(urlMap.get(id) + " " + weight + " " + idToDomain.get(id) + " " + pagerank);
+	    			// Webpage webpage = new Webpage(urlMap.get(id), contents[0], contents[1], contents[2], weight);
+	    			
+	    			Webpage webpage = new Webpage(urlMap.get(id), contents[0], contents[1], contents[2], weight);
+	    			bonusWebpage(webpage, query, fullArgs);
+	    			webpages.add(webpage);
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
     		}
     	}
     	
@@ -257,7 +304,7 @@ public class Query {
 	 */
 	private static void bonusWebpage(Webpage webpage, String rawQuery, List<String> queryTerms) {
 		if (!webpage.getTitle().isEmpty()) {
-			String title = webpage.getTitle();
+			String title = webpage.getTitle().toLowerCase();
 			Set<String> titleTerms = new HashSet<>(Arrays.asList(title.split("[\\p{Punct}\\s]+")));
 			Set<String> stemmedTitleTerms = new HashSet<>();
 			for (String titleTerm : titleTerms) {
