@@ -8,16 +8,16 @@ class Webpage implements Comparable<Webpage>{
 	private String headers;
 	private double score;
 	
-	public Webpage(String s, double score) {
-		url = s;
+	public Webpage(String url, double score) {
+		this.url = url;
 		this.title = "";
 		this.preview = "";
 		this.headers = "";
 		this.score = score;
 	}
 	
-	public Webpage(String s, String title, String preview, String headers, double score) {
-		url = s;
+	public Webpage(String url, String title, String preview, String headers, double score) {
+		this.url = url;
 		this.title = title;
 		this.preview = preview;
 		this.headers = headers;

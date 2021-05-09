@@ -88,6 +88,7 @@ public final class Indexer {
 			for (String rawTerm : allTerms) {
 				String term = rawTerm.toLowerCase()
 						.replaceAll("[^\\x00-\\x7F]", "")
+						.replaceAll("\u0000", "")
 						.trim();
 				if (!term.isEmpty() && !stopWords.contains(term) && term.length() < 50) {
 					stemmer.setCurrent(term);

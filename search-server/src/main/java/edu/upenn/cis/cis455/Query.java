@@ -18,6 +18,8 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import org.apache.commons.text.similarity.LongestCommonSubsequence;
+import org.apache.commons.text.similarity.SimilarityScore;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
@@ -47,15 +49,20 @@ public class Query {
 	
 	static final englishStemmer stemmer = new englishStemmer();
 	
+	static final SimilarityScore<Integer> similarityScorer = new LongestCommonSubsequence();
+	
 	static final double pagerankFactor = 0.8;
 	
-	/* BONUSES:
-	 * Title contains a search term or stemmed search term
-	 * Title contains full search query
-	 */
+	/* BONUS WEIGHTS: */
 	static final double titleTermMatchBonus = 0.1;
 	static final double stemmedTitleTermMatchBonus = 0.06;
-	static final double titleContainsQueryBonus = 0.3;
+	static final double titleSequenceBonus = 0.3;
+	
+	static final double headerTermMatchBonus = 0.05;
+	static final double stemmedHeaderTermMatchBonus = 0.03;
+	static final double headerSequenceBonus = 0.15;
+	
+	static final double bodySequenceBonus = 0.1;
 
 	public static Webpage[] query(String query, SparkSession spark, Connection connect) {
 		
@@ -298,11 +305,16 @@ public class Query {
 	}
 	
 	
-	/* BONUSES:
-	 * Title contains a search term or stemmed search term
-	 * Title contains full search query
+	/**
+	 * Bonus a webpage that more exactly matches our query
+	 * Considers sequences of words, exact match (rather than stemmed), etc.
 	 */
-	private static void bonusWebpage(Webpage webpage, String rawQuery, List<String> queryTerms) {
+	public static void bonusWebpage(Webpage webpage, String rawQuery, List<String> queryTerms) {
+		rawQuery = rawQuery.toLowerCase();
+		/* BONUSES:
+		 * Title contains a search term or stemmed search term
+		 * Title and query share a lengthy subsequence
+		 */
 		if (!webpage.getTitle().isEmpty()) {
 			String title = webpage.getTitle().toLowerCase();
 			Set<String> titleTerms = new HashSet<>(Arrays.asList(title.split("[\\p{Punct}\\s]+")));
@@ -328,10 +340,57 @@ public class Query {
 					}
 				}
 			}
+			
+			double similarityScore = (double) similarityScorer.apply(rawQuery, title);
+			double bonus = titleSequenceBonus * (similarityScore / rawQuery.length());
+			webpage.addToScore(bonus);
+			
+			System.out.println(title + " " + rawQuery + " " + bonus);
+			
+			/*
 			if (title.contains(rawQuery.toLowerCase())) {
 				webpage.addToScore(titleContainsQueryBonus);
 			}
+			*/
 		}
+		
+		/* BONUSES:
+		 * Header contains a search term or stemmed search term
+		 * Header and query share a lengthy subsequence
+		 */
+		if (!webpage.getHeaders().isEmpty()) {
+			String headers = webpage.getHeaders().toLowerCase();
+			Set<String> headerTerms = new HashSet<>(Arrays.asList(headers.split("[\\p{Punct}\\s]+")));
+			Set<String> stemmedHeaderTerms = new HashSet<>();
+			for (String headerTerm : headerTerms) {
+				stemmer.setCurrent(headerTerm);
+				if (stemmer.stem()) {
+					stemmedHeaderTerms.add(stemmer.getCurrent());
+				} else {
+					stemmedHeaderTerms.add(headerTerm);
+				}
+			}
+			
+			for (String searchTerm : queryTerms) {
+				if (headerTerms.contains(searchTerm.toLowerCase())) {
+					webpage.addToScore(headerTermMatchBonus);
+				} else {
+					stemmer.setCurrent(searchTerm);
+					if (stemmer.stem()) {
+						if (stemmedHeaderTerms.contains(stemmer.getCurrent())) {
+							webpage.addToScore(stemmedHeaderTermMatchBonus);
+		    			}
+					}
+				}
+			}
+			/*
+			if (headerTerms.contains(rawQuery.toLowerCase())) {
+				webpage.addToScore(headerSequenceBonus);
+			}
+			*/
+			
+		}
+		
 	}
 
 }
