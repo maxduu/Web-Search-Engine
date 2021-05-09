@@ -27,7 +27,11 @@ TODO
 
 ## How to Run The Project
 ### Crawler
-The crawler can be run using Maven. Within the `pom.xml` file, there are different executions for the master node and up to 3 worker nodes. To run the master, just simply run `mvn exec:java@master` and to run the workers, run `mvn exec:java@worker[number]`. It is important to note that there are several environment variables that the crawler uses. These are `RDS_USERNAME`, `RDS_PASSWORD`, and `RDS_HOSTNAME`. These must be filled in for the crawler to access and write to the database. Additionally, when using EC2, you will have to change the argument in pom.xml to match what ever location the master node is running on.
+The crawler can be run using Maven. Within the `pom.xml` file, there are different executions for the master node and up to 3 worker nodes. 
+To run the master, just simply run `mvn exec:java@master` and to run the workers, run `mvn exec:java@worker[number]`. 
+It is important to note that there are several environment variables that the crawler uses. These are `RDS_USERNAME`, `RDS_PASSWORD`, 
+and `RDS_HOSTNAME`. These must be filled in for the crawler to access and write to the database. Additionally, 
+when using EC2, you will have to change the argument in `pom.xml` to match what ever location the master node is running on.
 
 ### Indexer
 Deploy indexer, title script and Pagerank using EMR.
