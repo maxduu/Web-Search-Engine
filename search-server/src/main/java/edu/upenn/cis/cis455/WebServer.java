@@ -1,5 +1,6 @@
 package edu.upenn.cis.cis455;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -13,6 +14,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Scanner;
+
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
@@ -67,7 +70,7 @@ public class WebServer {
         for (String ss : lids) {
         	System.out.println(ss);
         }*/
-        staticFileLocation("/build");
+        staticFileLocation("/");
         options("/*",
                 (request, response) -> {
 
@@ -89,8 +92,11 @@ public class WebServer {
                 });
 
         before((request, response) -> response.header("Access-Control-Allow-Origin", "*"));
-        get("/", (req, res) -> {return IOUtils.toString(Spark.class.getResourceAsStream("index.html"));});
-
+        /*get("/", (req, res) -> {
+        	File f = new File(Paths.get(".").toAbsolutePath().normalize().toString() + "/build/index.html");
+        	String contents = new Scanner(f).useDelimiter("\\Z").next();
+        	return render(contents); });
+        */
         get("/search", (req, res) -> {
         	return gson.toJson(Query.query(req.queryParams("query"), spark, connect));
         });

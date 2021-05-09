@@ -60,17 +60,18 @@ public class CreateTitle {
 				crawlerDocsRDD.mapToPair(row -> new Tuple2<>(row.getAs("id"), row.getAs("content")));
 		JavaPairRDD<Integer, Document> ParsedContent = 
 				idToContent.mapToPair(pair -> new Tuple2<>(pair._1, Jsoup.parse(pair._2)));
-		JavaPairRDD<Integer, Tuple2<String, Tuple2<String, Tuple2<String, Document>>>> addStuff = 
+		JavaPairRDD<Integer, Tuple2<String, Tuple2<String, Tuple2<String,String>>>> addStuff = 
 				ParsedContent.mapToPair(pair -> {
-					String title = "Placeholder Title";
 					Elements ele = pair._2.getElementsByTag("title");
+					String title = "";
 					if(!ele.isEmpty()) {
 						Element e = ele.get(0);
 						 title = e.text();
 
 					}
-					String content = "Placeholder Content";
-					String helpful =  pair._2.select("h1,h2").text();
+					String content = "";
+					String helpful =  pair._2.select("h1,h2").text().replaceAll("[^\\x00-\\x7F]", "")
+	                        .replaceAll("\u0000", "");
 					ele = pair._2.getElementsByTag("p");
 					if(!ele.isEmpty()) {
 						content = "";
@@ -83,11 +84,11 @@ public class CreateTitle {
 						
 
 					}
-					return new Tuple2<>(pair._1, new Tuple2<>(title, new Tuple2<>(content, new Tuple2<>(helpful, pair._2))));
+					return new Tuple2<>(pair._1, new Tuple2<>(title, new Tuple2<>(content, new Tuple2<>(helpful, pair._2.select("body").text()))));
 				});
 		
 		JavaRDD<ContentEntry> contents  = addStuff.map(pair -> {
-			return new ContentEntry(pair._1, pair._2._1, pair._2._2._1, pair._2._2._2._1);
+			return new ContentEntry(pair._1, pair._2._1, pair._2._2._1, pair._2._2._2._1, pair._2._2._2._2);
 		});
 		
 		Dataset<Row> contentDF = spark.createDataFrame(contents, ContentEntry.class);
