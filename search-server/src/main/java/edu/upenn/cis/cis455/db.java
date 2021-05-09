@@ -21,6 +21,7 @@ public class db {
 	      String hostname = "cis555-project.ckm3s06jrxk1.us-east-1.rds.amazonaws.com";
 	      String port = "5432";
 	      String jdbcUrl = "jdbc:postgresql://" + hostname + ":" + port + "/" + dbName + "?user=" + userName + "&password=" + password;
+	      System.out.println(jdbcUrl);
 	      Connection con = DriverManager.getConnection(jdbcUrl);
 	      System.out.println("Remote connection successful.");
 	      return con;
