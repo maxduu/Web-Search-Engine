@@ -67,7 +67,7 @@ class Webpage implements Comparable<Webpage>{
 	public void addToScore(double incr) {
 		this.score += incr;
 	}
-
+	
 	@Override 
 	public boolean equals(Object other) {
 	    if (!(other instanceof Webpage)) {

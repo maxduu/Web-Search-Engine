@@ -1,6 +1,7 @@
 package edu.upenn.cis.cis455;
 
 import java.net.MalformedURLException;
+
 import java.net.URL;
 import java.sql.Connection;
 
@@ -32,10 +33,10 @@ import scala.Tuple2;
 public class Query {
 
 	static final String DB_NAME = "postgres";
-	static final String USERNAME = "master";
-	static final String PASSWORD = "ilovezackives";
+	static final String USERNAME = System.getenv("RDS_USERNAME");
+	static final String PASSWORD = System.getenv("RDS_PASSWORD");
+	static final String HOSTNAME = System.getenv("RDS_HOSTNAME");
 	static final int PORT = 5432;
-	static final String HOSTNAME = "cis555-project.ckm3s06jrxk1.us-east-1.rds.amazonaws.com";
 	
 	static final String INVERTED_INDEX_TABLE_NAME = "inverted_index";
 	static final String IDFS_TABLE_NAME = "idfs";
@@ -45,24 +46,26 @@ public class Query {
 	
 	static final String PAGERANK_RESULTS_TABLE_NAME = "pagerank_results";
 	
-	static final int MAX_RESULTS = 1000;
+	static final int MAX_RESULTS = 2000;
 	
 	static final englishStemmer stemmer = new englishStemmer();
 	
 	static final SimilarityScore<Integer> similarityScorer = new LongestCommonSubsequence();
 	
-	static final double pagerankFactor = 0.8;
+	static final double pagerankFactor = 0.013;
 	
 	/* BONUS WEIGHTS: */
-	static final double titleTermMatchBonus = 0.1;
-	static final double stemmedTitleTermMatchBonus = 0.06;
-	static final double titleSequenceBonus = 0.3;
+	static final double titleTermMatchBonus = 0.01;
+	static final double stemmedTitleTermMatchBonus = 0.003;
+	static final double titleSequenceBonus = 0.06;
+	static final double titleContainsBonus = 0.04;
 	
-	static final double headerTermMatchBonus = 0.05;
-	static final double stemmedHeaderTermMatchBonus = 0.03;
-	static final double headerSequenceBonus = 0.15;
+	static final double headerTermMatchBonus = 0.005;
+	static final double stemmedHeaderTermMatchBonus = 0.0015;
+	static final double headerSequenceBonus = 0.03;
+	static final double headerContainsBonus = 0.02;
 	
-	static final double bodySequenceBonus = 0.1;
+	static final double previewContainsBonus = 0.04;
 
 	public static Webpage[] query(String query, SparkSession spark, Connection connect) {
 		
@@ -92,6 +95,8 @@ public class Query {
 		// Helper variables to normalize term frequencies for the query vectors
 		int maxCount = 0;
 		Map<String, Integer> termToCount = new HashMap<>();
+		
+		Map<String, Double> termToIDF = new HashMap<>();
 		
 		// Construct query string for SQL
 		String termsString = "(";
@@ -140,6 +145,7 @@ public class Query {
 				do {
 					String term = idfsResults.getString("term");
 					double weight = .5 + .5 * termToQueryFreq.get(term) * idfsResults.getDouble("idf");
+					termToIDF.put(term, idfsResults.getDouble("idf"));
 					queryVector[termToIndex.get(term)] = weight;
 				} while (idfsResults.next());
 			}
@@ -202,7 +208,7 @@ public class Query {
     	idQueryString += ")";
     	
     	String urlQuery =  String.format("SELECT * FROM %s WHERE %s IN %s", URL_TABLE_NAME, "id", idQueryString);
-    	String contentQuery = String.format("SELECT * FROM %s WHERE %s IN %s", CONTENT_TABLE_NAME, "id", idQueryString);
+    	String contentQuery = String.format("SELECT id, title, content, headers FROM %s WHERE %s IN %s", CONTENT_TABLE_NAME, "id", idQueryString);
     	
     	System.out.println(urlQuery);
     	System.out.println(contentQuery);
@@ -211,18 +217,18 @@ public class Query {
 			ResultSet urlResults = s.executeQuery(urlQuery);
 			String link = null;
 			while (urlResults.next()) {
-				int id = Integer.parseInt(urlResults.getString(1));
-				link = urlResults.getString(2);
+				int id = Integer.parseInt(urlResults.getString("id"));
+				link = urlResults.getString("url");
 				urlMap.put(id,  link);
 				idToDomain.put(id, new URL(link).getAuthority());
 		    }
 			ResultSet contentResults = s.executeQuery(contentQuery);
 			while (contentResults.next()) {
-				String[] add = new String[3];
-				add[0] = contentResults.getString(2);
-				add[1] = contentResults.getString(3);
-				add[2] = contentResults.getString(4);
-				contentsMap.put(Integer.parseInt(contentResults.getString(1)), add);
+				String[] add = new String[4];
+				add[0] = contentResults.getString("title");
+				add[1] = contentResults.getString("content");
+				add[2] = contentResults.getString("headers");
+				contentsMap.put(Integer.parseInt(contentResults.getString("id")), add);
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -256,26 +262,28 @@ public class Query {
 			return new Webpage[0];
 		}
     	
+    	System.out.println("Bonusing");
     	SortedSet<Webpage> webpages = new TreeSet<>(); 
     	for (Tuple2<Integer, Double> tuple : sortedDocList) {
     		int id = tuple._1;
+    		
+    		Double pagerank = domainToPagerank.get(idToDomain.get(id));
+			if (pagerank == null) {
+				pagerank = Double.valueOf(0.00001);
+			}
+			pagerank = Math.log(Math.max(pagerank, 0.1));
+			double score = pagerankFactor * pagerank + (1 - pagerankFactor) * tuple._2;
+			
     		String[] contents = contentsMap.get(id);
     		if (contents == null) {
-    			Webpage webpage = new Webpage(urlMap.get(id), tuple._2);
-    			webpage.setTitle(String.valueOf(tuple._2));
+    			Webpage webpage = new Webpage(urlMap.get(id), score);
+    			webpage.setTitle(urlMap.get(id));
     			webpages.add(webpage);
     		} else {
     			try {
-	    			Double pagerank = domainToPagerank.get(idToDomain.get(id));
-	    			if (pagerank == null) {
-	    				pagerank = Double.valueOf(0);
-	    			}
-	    			double weight = pagerankFactor * pagerank + (1 - pagerankFactor) * tuple._2;
-	    			// System.out.println(urlMap.get(id) + " " + weight + " " + idToDomain.get(id) + " " + pagerank);
-	    			// Webpage webpage = new Webpage(urlMap.get(id), contents[0], contents[1], contents[2], weight);
-	    			
-	    			Webpage webpage = new Webpage(urlMap.get(id), contents[0], contents[1], contents[2], weight);
-	    			bonusWebpage(webpage, query, fullArgs);
+	    			// System.out.println(urlMap.get(id) + " " + score + " " + idToDomain.get(id) + " " + pagerank);
+    				Webpage webpage = new Webpage(urlMap.get(id), contents[0], contents[1], contents[2], score);
+	    			bonusWebpage(webpage, query, fullArgs, termToIDF);
 	    			webpages.add(webpage);
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
@@ -309,8 +317,10 @@ public class Query {
 	 * Bonus a webpage that more exactly matches our query
 	 * Considers sequences of words, exact match (rather than stemmed), etc.
 	 */
-	public static void bonusWebpage(Webpage webpage, String rawQuery, List<String> queryTerms) {
+	public static void bonusWebpage(Webpage webpage, String rawQuery, List<String> queryTerms, Map<String, Double> termToIDF) {
 		rawQuery = rawQuery.toLowerCase();
+		int rawQueryLength = rawQuery.length();
+		double rawQueryLengthLog = Math.log(rawQueryLength);
 		/* BONUSES:
 		 * Title contains a search term or stemmed search term
 		 * Title and query share a lengthy subsequence
@@ -335,23 +345,28 @@ public class Query {
 					stemmer.setCurrent(searchTerm);
 					if (stemmer.stem()) {
 						if (stemmedTitleTerms.contains(stemmer.getCurrent())) {
-							webpage.addToScore(stemmedTitleTermMatchBonus);
+							if (termToIDF.containsKey(searchTerm)) {
+								webpage.addToScore(stemmedTitleTermMatchBonus * termToIDF.get(searchTerm));
+							} else {
+								webpage.addToScore(stemmedTitleTermMatchBonus);
+							}
 		    			}
 					}
 				}
 			}
 			
 			double similarityScore = (double) similarityScorer.apply(rawQuery, title);
-			double bonus = titleSequenceBonus * (similarityScore / rawQuery.length());
-			webpage.addToScore(bonus);
-			
-			System.out.println(title + " " + rawQuery + " " + bonus);
-			
-			/*
-			if (title.contains(rawQuery.toLowerCase())) {
-				webpage.addToScore(titleContainsQueryBonus);
+			double bonus = similarityScore / rawQueryLength;
+			if (bonus >= .9) {
+				bonus = rawQueryLengthLog * titleSequenceBonus * bonus;
+				webpage.addToScore(bonus);
 			}
-			*/
+			
+			if (title.contains(rawQuery)) {
+				webpage.addToScore(rawQueryLengthLog * titleContainsBonus);
+			}
+
+			// System.out.println(title + " " + rawQuery + " " + bonus);
 		}
 		
 		/* BONUSES:
@@ -377,18 +392,32 @@ public class Query {
 				} else {
 					stemmer.setCurrent(searchTerm);
 					if (stemmer.stem()) {
-						if (stemmedHeaderTerms.contains(stemmer.getCurrent())) {
-							webpage.addToScore(stemmedHeaderTermMatchBonus);
-		    			}
+						if (termToIDF.containsKey(searchTerm)) {
+							webpage.addToScore(stemmedTitleTermMatchBonus * termToIDF.get(searchTerm));
+						} else {
+							webpage.addToScore(stemmedTitleTermMatchBonus);
+						}
 					}
 				}
 			}
-			/*
-			if (headerTerms.contains(rawQuery.toLowerCase())) {
-				webpage.addToScore(headerSequenceBonus);
-			}
-			*/
 			
+			double similarityScore = (double) similarityScorer.apply(rawQuery, headers);
+			double bonus = similarityScore / rawQueryLength;
+			if (bonus >= .9) {
+				bonus = rawQueryLengthLog * headerSequenceBonus * bonus;
+				webpage.addToScore(bonus);
+			}
+			
+			if (headers.contains(rawQuery)) {
+				webpage.addToScore(rawQueryLengthLog * headerContainsBonus);
+			}
+		}
+		
+		if (!webpage.getPreview().isEmpty()) {
+			String preview = webpage.getPreview().toLowerCase();
+			if (preview.contains(rawQuery)) {
+				webpage.addToScore(rawQueryLengthLog * previewContainsBonus);
+			}
 		}
 		
 	}

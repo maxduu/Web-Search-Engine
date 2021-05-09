@@ -25,7 +25,7 @@ const ResultsPage = () => {
     const split = window.location.search.substring(1).split('&');
     for (let i = 0; i < split.length; i++) {
       if (split[i].startsWith('search=')) {
-        const searchPageSearchTerm = split[i].split('search=')[1].replace('%20', ' ');
+        const searchPageSearchTerm = split[i].split('search=')[1].replaceAll('%20', ' ');
         setSearchTerm(searchPageSearchTerm);
         search(searchPageSearchTerm);
         break;

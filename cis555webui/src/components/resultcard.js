@@ -16,6 +16,9 @@ const ResultsCard = ({ resultData }) => (
         <Heading size={4}>
           <a href={resultData.url}>{resultData.title}</a>
         </Heading>
+        <Heading style={{ fontWeight: 'normal' }} size={6}>
+          <i>{resultData.preview.substring(0, Math.min(resultData.preview.length, 700))}</i>
+        </Heading>
       </Card.Content>
     </Card>
     <br />
