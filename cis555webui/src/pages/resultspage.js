@@ -100,6 +100,7 @@ const ResultsPage = () => {
           style={{ marginBottom: '10px' }}
         />
       </Container>
+      <p>`http://${ROUTES.HOSTNAME}:${ROUTES.PORT}/search?query=${"penn"}`</p>
     </>
   );
 };

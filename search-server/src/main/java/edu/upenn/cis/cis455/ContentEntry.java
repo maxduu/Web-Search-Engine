@@ -5,13 +5,15 @@ public class ContentEntry {
 	
 	private int id;
 	private String title;
-	private String content;
+	private String body;
 	private String headers;
-	public ContentEntry(int id, String title, String content, String headers) {
+	private String content;
+	public ContentEntry(int id, String title, String content, String headers, String body) {
 		this.id = id;
 		this.content = content;
 		this.title = title;
 		this.headers = headers;
+		this.body = body;
 	}
 	
 	public int getId() {
@@ -46,6 +48,15 @@ public class ContentEntry {
 	public void setHeader(String headers) {
 		this.headers = headers;
 	}
+	
+	public void setBody(String body) {
+		this.body = body;
+	}
+
+	public String getBody() {
+		return body;
+	}
+
 
 
 }
