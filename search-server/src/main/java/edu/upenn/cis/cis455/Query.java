@@ -1,6 +1,9 @@
 package edu.upenn.cis.cis455;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.sql.Connection;
+
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -11,8 +14,9 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -22,8 +26,6 @@ import org.apache.spark.sql.SparkSession;
 import org.tartarus.snowball.ext.englishStemmer;
 
 import scala.Tuple2;
-
-import com.google.gson.Gson;
 
 public class Query {
 
@@ -39,14 +41,27 @@ public class Query {
 	static final String URL_TABLE_NAME = "urls";
 	static final String CONTENT_TABLE_NAME = "crawler_content";
 	
+	static final String PAGERANK_RESULTS_TABLE_NAME = "pagerank_results";
+	
 	static final int MAX_RESULTS = 1000;
 	
 	static final englishStemmer stemmer = new englishStemmer();
-	static final Gson gson = new Gson();
+	
+	static final double pagerankFactor = 0.8;
+	
+	/* BONUSES:
+	 * Title contains a search term or stemmed search term
+	 * Title contains full search query
+	 */
+	static final double titleTermMatchBonus = 0.1;
+	static final double stemmedTitleTermMatchBonus = 0.06;
+	static final double titleContainsQueryBonus = 0.3;
 
-	public static String query(String query, SparkSession spark, Connection connect) {
+	public static Webpage[] query(String query, SparkSession spark, Connection connect) {
 		
 		System.out.println("Processing query: " + query);
+		
+		query = query.toLowerCase();
 		
 		try {
 			Class.forName("org.postgresql.Driver");
@@ -102,7 +117,31 @@ public class Query {
 			termToQueryFreq.put(key, ((double) termToCount.get(key)) / maxCount);
 		}
 		
-		// Perform database queries
+		// Construct weight vector for query
+		final double[] queryVector = new double[numDistinctSearchTerms];
+		
+		Statement s;
+		try {
+			s = connect.createStatement(0, 0);
+			System.out.println("SELECT * FROM " + IDFS_TABLE_NAME + " WHERE term IN " + termsString);
+			ResultSet idfsResults = s.executeQuery("SELECT * FROM " + IDFS_TABLE_NAME + " WHERE term IN " + termsString);
+			
+			if (!idfsResults.next()) {
+				System.out.println("No matching documents found.\n");
+	    		return new Webpage[0];
+			} else {
+				do {
+					String term = idfsResults.getString("term");
+					double weight = .5 + .5 * termToQueryFreq.get(term) * idfsResults.getDouble("idf");
+					queryVector[termToIndex.get(term)] = weight;
+				} while (idfsResults.next());
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return new Webpage[0];
+		}
+		
+		// Perform database query for matching documents
 		System.out.println("SELECT * FROM " + INVERTED_INDEX_TABLE_NAME + " WHERE term IN " + termsString);
 		
 		Dataset<Row> invertedIndexDF = spark.read()
@@ -111,31 +150,8 @@ public class Query {
 				.option("driver", "org.postgresql.Driver")
 				.option("query", "SELECT * FROM " + INVERTED_INDEX_TABLE_NAME + " WHERE term IN " + termsString)
 				.load();
-		
-		System.out.println("SELECT * FROM " + IDFS_TABLE_NAME + " WHERE term IN " + termsString);
-		
-		Dataset<Row> idfsDF = spark.read()
-				.format("jdbc")
-				.option("url", jdbcUrl)
-				.option("driver", "org.postgresql.Driver")
-				.option("query", "SELECT * FROM " + IDFS_TABLE_NAME + " WHERE term IN " + termsString)
-				.load();
-
+				
 		JavaRDD<Row> invertedIndexRDD = invertedIndexDF.toJavaRDD();
-		JavaRDD<Row> idfsRDD = idfsDF.toJavaRDD();
-
-		// Calculate weights for each query term using IDF
-		JavaPairRDD<Integer, Double> queryWeights = idfsRDD.mapToPair(row -> {
-			String term = row.getAs("term");
-			double weight = .5 + .5 * termToQueryFreq.get(term) * (double) row.getAs("idf");
-			return new Tuple2<>(termToIndex.get(term), weight);
-		});
-		
-		// Construct weight vector for query
-		final double[] queryVector = new double[numDistinctSearchTerms];
-		for (Tuple2<Integer, Double> tup : queryWeights.collect()) {
-			queryVector[tup._1.intValue()] = tup._2.doubleValue();
-		}
 		
 		// Group the terms/weights corresponding to each document
 		JavaPairRDD<Integer, Iterable<Tuple2<Integer, Double>>> docWeights = 
@@ -155,136 +171,117 @@ public class Query {
 		// Collect the top results
 		List<Tuple2<Integer, Double>> sortedDocList = sortedDocs.take(MAX_RESULTS);
 		
-		/*
-		for (Tuple2<Integer, Double> tup : sortedDocList) {
-			System.out.println(tup._1 + " " + tup._2);
-		}
-		*/
 
-		System.out.println("TF/IDF + Pagerank scores finished, using top " + MAX_RESULTS + " documents of " + sortedDocList.size());
+		System.out.println("TF/IDF finished, using top " + Math.max(sortedDocList.size(), MAX_RESULTS) + " documents");
 		
-		if (sortedDocList.isEmpty()) {
-			System.out.println("No matching documents found.\n");
-    		return "{}";
-    	}
-    	
+
 		/**
 		 * Obtain urls, content previews for top ranked documents,
 		 * and improve search results with additional measures
 		 */
-		Map<Integer, Double> ansmap = new HashMap<Integer, Double>();
-    	Map<Integer, String> urlmap = new HashMap<Integer, String>();
-    	Map<Integer, String[]> contentsmap = new HashMap<Integer, String[]>();
-    	Url[] urls = new Url[sortedDocList.size()];
-    	int counter = 0;
-    	Statement s;
-
-    	StringBuilder queryStringBuilder = new StringBuilder();
-    	queryStringBuilder.append("(");
+    	Map<Integer, String> urlMap = new HashMap<>();
+    	Map<Integer, String[]> contentsMap = new HashMap<>();
+    	Map<Integer, String> idToDomain = new HashMap<>();
+    	Map<String, Double> domainToPagerank = new HashMap<>();
+    	
+    	StringBuilder idQueryBuilder = new StringBuilder("(");
     	
     	for (Tuple2<Integer, Double> tuple : sortedDocList) {
-    		int id = tuple._1;
-    		ansmap.put(id, tuple._2);
-        	queryStringBuilder.append("'" + id + "',");
+    		idQueryBuilder.append("'" + tuple._1 + "',");
     	}
     	
-    	String queryString = queryStringBuilder.toString();
-    	if(queryString.length() > 1) queryString = queryString.substring(0, queryString.length() - 1);
-    	queryString += ")";
+    	String idQueryString = idQueryBuilder.toString();
+    	if (idQueryString.length() > 1) idQueryString = idQueryString.substring(0, idQueryString.length() - 1);
+    	idQueryString += ")";
     	
-    	String urlQuery =  String.format("SELECT * FROM %s WHERE %s IN %s", URL_TABLE_NAME, "id", queryString);
-    	String contentQuery = String.format("SELECT * FROM %s WHERE %s IN %s", CONTENT_TABLE_NAME, "id", queryString);
+    	String urlQuery =  String.format("SELECT * FROM %s WHERE %s IN %s", URL_TABLE_NAME, "id", idQueryString);
+    	String contentQuery = String.format("SELECT * FROM %s WHERE %s IN %s", CONTENT_TABLE_NAME, "id", idQueryString);
     	
     	System.out.println(urlQuery);
     	System.out.println(contentQuery);
     	
     	try {
-			s = connect.createStatement(0, 0);
-			ResultSet rs = s.executeQuery(urlQuery);
+			ResultSet urlResults = s.executeQuery(urlQuery);
 			String link = null;
-			while (rs.next()) {
-				int id = Integer.parseInt(rs.getString(1));
-				link = rs.getString(2);
-				urlmap.put(id,  link);
+			while (urlResults.next()) {
+				int id = Integer.parseInt(urlResults.getString(1));
+				link = urlResults.getString(2);
+				urlMap.put(id,  link);
+				idToDomain.put(id, new URL(link).getAuthority());
 		    }
-			ResultSet rs2 = s.executeQuery(contentQuery);
-			while(rs2.next()) {
-				String[] add = new String[2];
-				add[0] = rs2.getString(2);
-				add[1] = rs2.getString(3);
-			  contentsmap.put(Integer.parseInt(rs2.getString(1)), add);
+			ResultSet contentResults = s.executeQuery(contentQuery);
+			while (contentResults.next()) {
+				String[] add = new String[3];
+				add[0] = contentResults.getString(2);
+				add[1] = contentResults.getString(3);
+				add[2] = contentResults.getString(4);
+				contentsMap.put(Integer.parseInt(contentResults.getString(1)), add);
 			}
-			 //doc = doc.substring(0, Math.min(1000, doc.length()));
-        	s.close();
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
+			return new Webpage[0];
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+			return new Webpage[0];
 		}
     	
-    	/* BONUSES:
-		 * Title contains a search term or stemmed search term
-		 * Title contains full search query
-		 */
-    	double titleTermMatchBonus = 0.1; //0.1
-    	double stemmedTitleTermMatchBonus = 0.06; //0.06
-    	double titleContainsQueryBonus = 0.3; // 0.3
+    	// Calculate PageRank for each domain
+    	StringBuilder pagerankQueryBuilder = new StringBuilder("(");
+    	for (String domain : idToDomain.values()) {
+    		pagerankQueryBuilder.append("'" + domain + "',");
+    	}
+    	String pagerankQueryString = pagerankQueryBuilder.toString();
+    	if (pagerankQueryString.length() > 1) pagerankQueryString = pagerankQueryString.substring(0, pagerankQueryString.length() - 1);
+    	pagerankQueryString += ")";
     	
-    	for (int id : ansmap.keySet()) {
-    		if (contentsmap.containsKey(id)) {
-    			String title = contentsmap.get(id)[0].toLowerCase();
-        		Set<String> titleTerms = new HashSet<>(Arrays.asList(title.split("[\\p{Punct}\\s]+")));
-        		Set<String> stemmedTitleTerms = new HashSet<>();
-        		for (String titleTerm : titleTerms) {
-        			stemmer.setCurrent(titleTerm);
-    				if (stemmer.stem()) {
-    					stemmedTitleTerms.add(stemmer.getCurrent());
-    				} else {
-    					stemmedTitleTerms.add(titleTerm);
-    				}
-        		}
-
-        		for (String searchTerm : fullArgs) {
-        			if (titleTerms.contains(searchTerm.toLowerCase())) {
-        				ansmap.put(id, ansmap.get(id) + titleTermMatchBonus);
-        			} else {
-        				stemmer.setCurrent(searchTerm);
-        				if (stemmer.stem()) {
-        					if (stemmedTitleTerms.contains(stemmer.getCurrent())) {
-        	    				ansmap.put(id, ansmap.get(id) + stemmedTitleTermMatchBonus);
-        	    			}
-        				}
-        			}
-        		}
-        		if (title.contains(query.toLowerCase())) {
-        			ansmap.put(id, ansmap.get(id) + titleContainsQueryBonus);
-        		}
+    	String pagerankQuery =  String.format("SELECT * FROM %s WHERE %s IN %s", PAGERANK_RESULTS_TABLE_NAME, "domain", pagerankQueryString);
+    	
+    	System.out.println(pagerankQuery);
+    	
+    	try {
+			ResultSet pagerankResults = s.executeQuery(pagerankQuery);
+			while (pagerankResults.next()) {
+				domainToPagerank.put(pagerankResults.getString("domain"), pagerankResults.getDouble("rank"));
+		    }
+        	s.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return new Webpage[0];
+		}
+    	
+    	SortedSet<Webpage> webpages = new TreeSet<>(); 
+    	for (Tuple2<Integer, Double> tuple : sortedDocList) {
+    		int id = tuple._1;
+    		String[] contents = contentsMap.get(id);
+    		if (contents == null) {
+    			Webpage webpage = new Webpage(urlMap.get(id), tuple._2);
+    			webpage.setTitle(String.valueOf(tuple._2));
+    			webpages.add(webpage);
+    		} else {
+    			try {
+	    			Double pagerank = domainToPagerank.get(idToDomain.get(id));
+	    			if (pagerank == null) {
+	    				pagerank = Double.valueOf(0);
+	    			}
+	    			double weight = pagerankFactor * pagerank + (1 - pagerankFactor) * tuple._2;
+	    			// System.out.println(urlMap.get(id) + " " + weight + " " + idToDomain.get(id) + " " + pagerank);
+	    			// Webpage webpage = new Webpage(urlMap.get(id), contents[0], contents[1], contents[2], weight);
+	    			
+	    			Webpage webpage = new Webpage(urlMap.get(id), contents[0], contents[1], contents[2], weight);
+	    			bonusWebpage(webpage, query, fullArgs);
+	    			webpages.add(webpage);
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
     		}
     	}
-
-        List<Entry<Integer, Double>> list = new LinkedList<Entry<Integer, Double>>(ansmap.entrySet());
-        
-        // Perform sorting of final scores
-        list.sort(Entry.comparingByValue());
-        
-        for (Entry<Integer, Double> e : list) {
-        	String url = urlmap.get(e.getKey());
-        	String[] stuff = contentsmap.get(e.getKey());
-        	
-        	if(stuff != null) {
-        		urls[urls.length - 1 - counter] = new Url(url, stuff[0], stuff[1]);
-        	}
-        	else {
-            	urls[urls.length - 1 - counter] = new Url(url, "", "");
-        	}
-        	//urls[urls.length - 1 - counter] = new Url(url, String.valueOf(e.getValue()), "");
-        	counter++;
-        	
-        }
-
-        System.out.println("Returning final document order.\n");
-		return gson.toJson(urls);
+    	
+    	System.out.println("Returning final document order.\n");
+    	
+    	return webpages.toArray(new Webpage[0]);
 	}
-	
+
 	/**
 	 * @return the cosine similarity between two vectors
 	 */
@@ -298,6 +295,43 @@ public class Query {
 	        normB += Math.pow(vectorB[i], 2);
 	    }   
 	    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+	}
+	
+	
+	/* BONUSES:
+	 * Title contains a search term or stemmed search term
+	 * Title contains full search query
+	 */
+	private static void bonusWebpage(Webpage webpage, String rawQuery, List<String> queryTerms) {
+		if (!webpage.getTitle().isEmpty()) {
+			String title = webpage.getTitle().toLowerCase();
+			Set<String> titleTerms = new HashSet<>(Arrays.asList(title.split("[\\p{Punct}\\s]+")));
+			Set<String> stemmedTitleTerms = new HashSet<>();
+			for (String titleTerm : titleTerms) {
+				stemmer.setCurrent(titleTerm);
+				if (stemmer.stem()) {
+					stemmedTitleTerms.add(stemmer.getCurrent());
+				} else {
+					stemmedTitleTerms.add(titleTerm);
+				}
+			}
+			
+			for (String searchTerm : queryTerms) {
+				if (titleTerms.contains(searchTerm.toLowerCase())) {
+					webpage.addToScore(titleTermMatchBonus);
+				} else {
+					stemmer.setCurrent(searchTerm);
+					if (stemmer.stem()) {
+						if (stemmedTitleTerms.contains(stemmer.getCurrent())) {
+							webpage.addToScore(stemmedTitleTermMatchBonus);
+		    			}
+					}
+				}
+			}
+			if (title.contains(rawQuery.toLowerCase())) {
+				webpage.addToScore(titleContainsQueryBonus);
+			}
+		}
 	}
 
 }

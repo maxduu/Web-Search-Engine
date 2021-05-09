@@ -98,8 +98,7 @@ public class WebServer {
         	return render(contents); });
         */
         get("/search", (req, res) -> {
-        	System.out.println(req.queryParams("query"));
-        	return Query.query(req.queryParams("query"), spark, connect);
+        	return gson.toJson(Query.query(req.queryParams("query"), spark, connect));
         });
         
         get("/geturl/:id", (req, res) -> {

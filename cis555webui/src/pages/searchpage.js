@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Container from 'react-bulma-components/lib/components/container';
 import Image from 'react-bulma-components/lib/components/image';
 import Columns from 'react-bulma-components/lib/components/columns';
-import { Field, Input } from 'react-bulma-components/lib/components/form';
+import { Field, Input, Control } from 'react-bulma-components/lib/components/form';
 import Button from 'react-bulma-components/lib/components/button';
 import Hero from 'react-bulma-components/lib/components/hero';
 
@@ -12,8 +12,10 @@ const logo = '../../walmart-google.png';
 const SearchPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const onSearchClick = () => {
-    window.location = `${ROUTES.RESULTS}?search=${searchTerm} `;
+  const onKeyPress = (event) => {
+    if (event.code === 'Enter' && searchTerm.trim().length) {
+      window.location = `${ROUTES.RESULTS}?search=${searchTerm}`;
+    }
   };
 
   return (
@@ -27,18 +29,21 @@ const SearchPage = () => {
                 <Image src={logo} />
               </a>
               <br />
-              <Field kind='addons'>
+              <Field kind='group'>
                 <Input
                   placeholder='Search'
                   onChange={(e) => setSearchTerm(e.target.value)}
                   value={searchTerm}
+                  onKeyPress={onKeyPress}
                 />
-                <Button
-                  renderAs='button'
-                  onClick={onSearchClick}
-                  disabled={!searchTerm.trim().length}>
-                  Search
-                </Button>
+                <Control>
+                  <Button
+                    renderAs='button'
+                    onClick={() => (window.location = `${ROUTES.RESULTS}?search=${searchTerm}`)}
+                    disabled={!searchTerm.trim().length}>
+                    Search
+                  </Button>
+                </Control>
               </Field>
             </Container>
           </Hero.Body>

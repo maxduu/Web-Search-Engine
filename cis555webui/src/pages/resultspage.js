@@ -6,6 +6,7 @@ import Button from 'react-bulma-components/lib/components/button';
 import Card from 'react-bulma-components/lib/components/card';
 import Image from 'react-bulma-components/lib/components/image';
 import Heading from 'react-bulma-components/lib/components/heading';
+import PacmanLoader from 'react-spinners/PacmanLoader';
 import axios from 'axios';
 
 import ResultsCard from '../components/resultcard';
@@ -18,12 +19,13 @@ const ResultsPage = () => {
   const [displayResults, setDisplayResults] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const split = window.location.search.substring(1).split('&');
     for (let i = 0; i < split.length; i++) {
       if (split[i].startsWith('search=')) {
-        const searchPageSearchTerm = split[i].split('search=')[1];
+        const searchPageSearchTerm = split[i].split('search=')[1].replace('%20', ' ');
         setSearchTerm(searchPageSearchTerm);
         search(searchPageSearchTerm);
         break;
@@ -35,20 +37,21 @@ const ResultsPage = () => {
     axios
       .get(`http://${ROUTES.HOSTNAME}:${ROUTES.PORT}/search?query=${query}`)
       .then((res) => {
-        console.log(res)
-        if (!res || !res.data.length) {
+        if (!res || !res.data || !res.data.length) {
           setResults([]);
           setDisplayResults([]);
           setCurrentPage(0);
           setTotalPages(0);
         } else {
-          const resultHTML = res.data.map((result, i) => <ResultsCard key={i} resultData={result} />);
-          console.log(resultHTML)
+          const resultHTML = res.data.map((result, i) => (
+            <ResultsCard key={i} resultData={result} />
+          ));
           setResults(resultHTML);
           setDisplayResults(resultHTML.slice(0, 10));
           setCurrentPage(1);
-          setTotalPages(Math.ceil(res.length / 10));
+          setTotalPages(Math.ceil(res.data.length / 10));
         }
+        setLoading(false);
       })
       .catch((err) => {
         console.log(err);
@@ -58,6 +61,12 @@ const ResultsPage = () => {
   const onChangePage = (e) => {
     setDisplayResults(results.slice((e - 1) * 10, e * 10));
     setCurrentPage(e);
+  };
+
+  const onKeyPress = (event) => {
+    if (event.code === 'Enter' && searchTerm.trim().length) {
+      window.location = `${ROUTES.RESULTS}?search=${searchTerm}`;
+    }
   };
 
   return (
@@ -72,12 +81,13 @@ const ResultsPage = () => {
             <Input
               placeholder='Search'
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyPress={onKeyPress}
               value={searchTerm}
               style={{ width: '30%' }}
             />
             <Button
               renderAs='button'
-              onClick={() => {console.log(searchTerm); search(searchTerm)}}
+              onClick={() => (window.location = `${ROUTES.RESULTS}?search=${searchTerm}`)}
               disabled={!searchTerm.trim().length}>
               Search
             </Button>
@@ -85,22 +95,33 @@ const ResultsPage = () => {
         </Card.Content>
       </Card>
       <br />
-      <Container>
-        <div>
-          <Heading>Results</Heading>
-          {displayResults}
-        </div>
-      </Container>
-      <br />
-      <Container>
-        <Pagination
-          current={currentPage}
-          total={totalPages}
-          onChange={onChangePage}
-          style={{ marginBottom: '10px' }}
+      {loading ? (
+        <PacmanLoader
+          loading={loading}
+          color='#ffff00'
+          css={{ display: 'block', margin: '0 auto' }}
+          size={40}
         />
-      </Container>
-      <p>`http://${ROUTES.HOSTNAME}:${ROUTES.PORT}/search?query=${"penn"}`</p>
+      ) : (
+        <>
+          <Container>
+            <div>
+              <Heading>{!results.length ? 'No Results' : 'Results'}</Heading>
+              {displayResults}
+            </div>
+          </Container>
+          <br />
+          <Container>
+            <Pagination
+              current={currentPage}
+              total={totalPages}
+              delta={2}
+              onChange={onChangePage}
+              style={{ marginBottom: '10px' }}
+            />
+          </Container>
+        </>
+      )}
     </>
   );
 };
