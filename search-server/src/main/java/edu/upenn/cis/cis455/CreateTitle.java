@@ -56,6 +56,7 @@ public class CreateTitle {
 				.option("dbtable", CRAWLER_DOCS_TABLE_NAME)
 				.load().repartition(500);
 		JavaRDD<Row> crawlerDocsRDD = crawlerDocsDF.toJavaRDD();
+		crawlerDocsRDD = crawlerDocsRDD.filter(row -> ((String) row.getAs("type")).contains("text/html"));
 		JavaPairRDD<Integer, String> idToContent = 
 				crawlerDocsRDD.mapToPair(row -> new Tuple2<>(row.getAs("id"), row.getAs("content")));
 		JavaPairRDD<Integer, Document> ParsedContent = 
@@ -70,8 +71,7 @@ public class CreateTitle {
 
 					}
 					String content = "";
-					String helpful =  pair._2.select("h1,h2").text().replaceAll("[^\\x00-\\x7F]", "")
-	                        .replaceAll("\u0000", "");
+					String helpful =  pair._2.select("h1,h2").text();
 					ele = pair._2.getElementsByTag("p");
 					if(!ele.isEmpty()) {
 						content = "";
@@ -84,7 +84,8 @@ public class CreateTitle {
 						
 
 					}
-					return new Tuple2<>(pair._1, new Tuple2<>(title, new Tuple2<>(content, new Tuple2<>(helpful, pair._2.select("body").text()))));
+					return new Tuple2<>(pair._1, new Tuple2<>(title, new Tuple2<>(content, new Tuple2<>(helpful, pair._2.select("body").text().replaceAll("[^\\x00-\\x7F]", "")
+	                        .replaceAll("\u0000", "")))));
 				});
 		
 		JavaRDD<ContentEntry> contents  = addStuff.map(pair -> {
