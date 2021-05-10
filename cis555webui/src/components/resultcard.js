@@ -11,10 +11,20 @@ const ResultsCard = ({ resultData }) => (
           size={6}
           onClick={() => (window.location = resultData.url)}
           style={{ cursor: 'pointer' }}>
-          {resultData.url}
+          {resultData.url.substring(0, Math.min(resultData.url.length, 110)) +
+            (resultData.url.length > 110 ? ' ...' : '')}
         </Heading>
         <Heading size={4}>
-          <a href={resultData.url}>{resultData.title}</a>
+          <a href={resultData.url}>
+            {resultData.title.substring(0, Math.min(resultData.title.length, 70)) +
+              (resultData.title.length > 70 ? ' ...' : '')}
+          </a>
+        </Heading>
+        <Heading style={{ fontWeight: 'normal' }} size={6}>
+          <i>
+            {resultData.preview.substring(0, Math.min(resultData.preview.length, 600)) +
+              (resultData.preview.length > 600 ? ' ...' : '')}
+          </i>
         </Heading>
       </Card.Content>
     </Card>
