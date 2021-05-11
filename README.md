@@ -27,7 +27,7 @@ UI to display search results.
 
 ### Extra Credit
 
-No EC implemented
+EC up to grader's discretion
 
 ### Source Files
 
