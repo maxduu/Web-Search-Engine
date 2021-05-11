@@ -11,7 +11,8 @@ The crawler is an extension of the crawl task from HW2. The crawler follows the 
 Indexer that takes documents and created inverted index + create TF/IDF
 
 ### PageRank
-PageRank algorithm written in SQL that writes to Amazon RDS.
+The PageRank algorithm is written in Python on a Jupyter Notebook using PySpark SQL. It queries a Postgres AWS RDS instance for graph edge list
+data and loads it into a spark dataframe for computation. When it converges the results are written back to RDS.
 
 ### Query and Search
 Query function which returns sorted list of id's matching the query.
@@ -37,6 +38,22 @@ when using EC2, you will have to change the argument in `pom.xml` to match what 
 Deploy indexer, title script and Pagerank using EMR.
 
 ### PageRank
+Follow this tutorial to configure and launch your EC2 node: https://chrisalbon.com/aws/basics/run_project_jupyter_on_amazon_ec2/ . Afterwards,
+upload the 2 notebooks: pagerank.ipynb and clean_urls.ipynb using the Jupyter Notebook UI. Additionally add the postgresql-42.2.20.jar file in
+the same directory. You will also need the create a file called aws_credentials.json and put it into the same directory. The file should have the
+following format:
+{
+	"aws_access_key_id": "",
+	"aws_secret_access_key": "",
+	"password": "",
+	"ENDPOINT": "",
+	"PORT": "",
+	"USR": "",
+	"REGION": "",
+	"DBNAME": ""
+}
+
+Now just run clean_urls.ipynb, then run pagerank.ipynb.
 
 ### Query and Search
 Every other component can be deployed in EC2.
