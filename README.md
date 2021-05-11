@@ -21,10 +21,10 @@ Web server API for the query function
 UI to display search results.
 
 ### Extra Credit
-Add Bonuses Here
+No extra credit
 
 ### Source Files
-TODO
+All files in repo
 
 ## How to Run The Project
 ### Crawler
