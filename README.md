@@ -8,7 +8,7 @@ Kevin Chen (kevc528), Maxwell Du (maxdu), Edward Kim (kime022), Andrew Zhao (anz
 The crawler is an extension of the crawl task from HW2. The crawler follows the Mercator model and distributes the tasks involved in the crawl. Added are a worker and master Spark Java servers along with changes to the queue and other aspects of the crawler to increase efficiency.
 
 ### Indexer
-Indexer that takes documents and created inverted index + create TF/IDF
+The indexer takes documents and creates an inverted index which maps terms to documents that contain them, along a seond table that maps terms to their IDFs. 
 
 ### PageRank
 PageRank algorithm written in SQL that writes to Amazon RDS.
@@ -34,7 +34,7 @@ and `RDS_HOSTNAME`. These must be filled in for the crawler to access and write 
 when using EC2, you will have to change the argument in `pom.xml` to match what ever location the master node is running on.
 
 ### Indexer
-Deploy indexer, title script and Pagerank using EMR.
+To run the indexer, first run `mvn package` within the 555-indexer directory, which will create a JAR file in the target folder. Upload this file to S3, and create an EMR cluster that runs this S3 file as a "Spark step." Make sure that the arguments for spark-submit contains ``--class edu.upenn.cis.cis455.invertedindex.Indexer`` and that you specify ``--conf spark.yarn.appMasterEnv.RDS_USERNAME=___ --conf spark.yarn.appMasterEnv.RDS_PASSWORD=___ --conf spark.yarn.appMasterEnv.RDS_HOSTNAME=___``. The arguments to the main class itself is of the form ``crawlerDocsTableName invertedIndexTableName idfsTablename numPartitions``, where ``numPartitions`` specifies the number of partitions Spark uses throughout the job. 
 
 ### PageRank
 
