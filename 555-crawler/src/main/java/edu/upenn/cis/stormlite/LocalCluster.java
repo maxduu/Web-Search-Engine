@@ -69,7 +69,7 @@ public class LocalCluster implements Runnable {
 	
 	ObjectMapper mapper = new ObjectMapper();
 	
-	ExecutorService executor = Executors.newFixedThreadPool(1);
+	ExecutorService executor = Executors.newFixedThreadPool(3);
 	Queue<ITask> taskQueue = new ConcurrentLinkedQueue<>();
 	
 
