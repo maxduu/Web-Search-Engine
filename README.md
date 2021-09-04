@@ -22,10 +22,6 @@ data and loads it into a spark dataframe for computation. When it converges the 
 
 The query function returns a sorted list of documents matching a user's query, where documents' scores are a combination of TF-IDF, pagerank, and several custom bonuses we implemented. On the front-end, there is a web server API for the query function and a React-based UI to display search results.
 
-### Extra Credit
-
-EC up to grader's discretion
-
 ### Source Files
 
 * Crawler: 555-crawler
