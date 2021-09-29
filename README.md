@@ -8,7 +8,7 @@ Kevin Chen (kevc528), Maxwell Du (maxdu), Edward Kim (kime022), Andrew Zhao (anz
 
 ### Crawler
 
-The crawler is an extension of the crawl task from HW2. The crawler follows the Mercator model and distributes the tasks involved in the crawl. Added are a worker and master Spark Java servers along with changes to the queue and other aspects of the crawler to increase efficiency.
+The crawler follows the Mercator model and distributes the tasks involved in the crawl. Added are a worker and master Spark Java servers along with changes to the queue and other aspects of the crawler to increase efficiency.
 
 ### Indexer
 The indexer takes documents and creates an inverted index which maps terms to documents that contain them, along a seond table that maps terms to their IDFs. 
